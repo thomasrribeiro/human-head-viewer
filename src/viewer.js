@@ -64,8 +64,8 @@ async function loadTissueColors() {
     stlFiles.push(stlFilename);
   });
 
-  console.log(`Loaded ${Object.keys(tissueColorsByID).length} tissue colors from MIDA_v1.txt`);
-  console.log(`Generated ${stlFiles.length} STL filenames`);
+  // console.log(`Loaded ${Object.keys(tissueColorsByID).length} tissue colors from MIDA_v1.txt`);
+  // console.log(`Generated ${stlFiles.length} STL filenames`);
 }
 
 async function loadDensityData() {
@@ -78,8 +78,8 @@ async function loadDensityData() {
   const headers = headerLine.split('\t');
   const altNamesIndex = headers.indexOf('Alternative Names');
 
-  console.log(`Alternative Names column index: ${altNamesIndex}`);
-  console.log(`Number of columns in header: ${headers.length}`);
+  // console.log(`Alternative Names column index: ${altNamesIndex}`);
+  // console.log(`Number of columns in header: ${headers.length}`);
 
   // Skip header lines (first 3 lines: blank, main headers, sub-headers)
   for (let i = 3; i < lines.length; i++) {
@@ -94,9 +94,9 @@ async function loadDensityData() {
     const semcadNames = altNamesIndex >= 0 ? parts[altNamesIndex] : null;
 
     // Debug first few rows
-    if (i < 6) {
-      console.log(`Row ${i}: tissue="${tissueName}", density=${densityAvg}, numCols=${parts.length}, altNames="${semcadNames}"`);
-    }
+    // if (i < 6) {
+    //   console.log(`Row ${i}: tissue="${tissueName}", density=${densityAvg}, numCols=${parts.length}, altNames="${semcadNames}"`);
+    // }
 
     if (!isNaN(densityAvg) && densityAvg > 0) {
       // Update min/max for normalization
@@ -119,9 +119,9 @@ async function loadDensityData() {
     }
   }
 
-  console.log(`Loaded density data for ${Object.keys(densityByTissueName).length} tissues`);
-  console.log(`Density range: ${minDensity} - ${maxDensity} kg/m³`);
-  console.log(`Sample densities: Dura=${densityByTissueName['Dura']}, Adrenal Gland=${densityByTissueName['Adrenal Gland']}`);
+  // console.log(`Loaded density data for ${Object.keys(densityByTissueName).length} tissues`);
+  // console.log(`Density range: ${minDensity} - ${maxDensity} kg/m³`);
+  // console.log(`Sample densities: Dura=${densityByTissueName['Dura']}, Adrenal Gland=${densityByTissueName['Adrenal Gland']}`);
 }
 
 // Bone colormap: maps normalized value (0-1) to grayscale bone color
@@ -160,9 +160,10 @@ function getDensityColor(tissueName) {
     return [0.5, 0.5, 0.5]; // Gray for unknown
   }
 
-  // Normalize density to [0, 1] and use grayscale
+  // Normalize density to [0, 1] using actual min/max
   const normalized = (density - minDensity) / (maxDensity - minDensity);
-  return [normalized, normalized, normalized];
+  const clampedNormalized = Math.max(0, Math.min(1, normalized));
+  return [clampedNormalized, clampedNormalized, clampedNormalized];
 }
 
 function getTissueColor(filename) {
@@ -236,7 +237,7 @@ async function loadAllData() {
       if (loadedCount === stlFiles.length) {
         // Get bounds of STL data to align with voxel data
         const stlBounds = renderer.computeVisiblePropBounds();
-        console.log('STL bounds:', stlBounds);
+        // console.log('STL bounds:', stlBounds);
         loadVoxelSlice(stlBounds);
       }
     }).catch((error) => {
@@ -263,6 +264,10 @@ let imageSliceActor = null;
 let voxelData = null;
 let stlBounds = null;
 let voxelColorTransferFunction = null;
+let defaultCameraState = null;
+
+// Manual camera vertical offset - adjust this to shift view up/down
+const CAMERA_VERTICAL_OFFSET = -20;
 
 function loadVoxelSlice(bounds) {
   stlBounds = bounds;
@@ -304,16 +309,16 @@ function loadVoxelSlice(bounds) {
     // The VTI file should already have correct spacing (0.0005m = 0.5mm per voxel)
     // Verify and log the spacing
     const voxelBounds = voxelData.getBounds();
-    console.log('STL bounds:', stlBounds);
-    console.log('Voxel data spacing:', voxelData.getSpacing());
-    console.log('Voxel data origin:', voxelData.getOrigin());
-    console.log('Voxel data bounds:', voxelBounds);
+    // console.log('STL bounds:', stlBounds);
+    // console.log('Voxel data spacing:', voxelData.getSpacing());
+    // console.log('Voxel data origin:', voxelData.getOrigin());
+    // console.log('Voxel data bounds:', voxelBounds);
 
     // Calculate offset to align voxel coordinate system with STL coordinate system
     yOffset = stlBounds[2] - voxelBounds[2]; // Align min Y values
     const xOffset = stlBounds[0] - voxelBounds[0]; // Align min X values
     const zOffset = stlBounds[4] - voxelBounds[4]; // Align min Z values
-    console.log('Offsets to align coordinate systems - X:', xOffset, 'Y:', yOffset, 'Z:', zOffset);
+    // console.log('Offsets to align coordinate systems - X:', xOffset, 'Y:', yOffset, 'Z:', zOffset);
 
     // Calculate centers for rotation
     const voxelCenterX = (voxelBounds[0] + voxelBounds[1]) / 2;
@@ -322,8 +327,8 @@ function loadVoxelSlice(bounds) {
     const stlCenterX = (stlBounds[0] + stlBounds[1]) / 2;
     const stlCenterY = (stlBounds[2] + stlBounds[3]) / 2;
     const stlCenterZ = (stlBounds[4] + stlBounds[5]) / 2;
-    console.log('Voxel center:', voxelCenterX, voxelCenterY, voxelCenterZ);
-    console.log('STL center:', stlCenterX, stlCenterY, stlCenterZ);
+    // console.log('Voxel center:', voxelCenterX, voxelCenterY, voxelCenterZ);
+    // console.log('STL center:', stlCenterX, stlCenterY, stlCenterZ);
 
     // Create color transfer function for voxel data
     voxelColorTransferFunction = vtkColorTransferFunction.newInstance();
@@ -358,8 +363,8 @@ function loadVoxelSlice(bounds) {
     const xManualOffset = 1; // Adjust this value to fine-tune X alignment
     const zManualOffset = 2; // Adjust this value to fine-tune Z alignment
 
-    console.log('Auto-calculated adjustments - xAdjust:', xAdjust, 'zAdjust:', zAdjust);
-    console.log('Manual offsets - xManualOffset:', xManualOffset, 'zManualOffset:', zManualOffset);
+    // console.log('Auto-calculated adjustments - xAdjust:', xAdjust, 'zAdjust:', zAdjust);
+    // console.log('Manual offsets - xManualOffset:', xManualOffset, 'zManualOffset:', zManualOffset);
 
     // Set the origin to STL center in local coordinates (relative to voxel data)
     // STL center in world space - voxel offset = STL center in voxel local space
@@ -384,18 +389,29 @@ function loadVoxelSlice(bounds) {
     sliceProperty.setUseLookupTableScalarRange(true);
 
     renderer.addActor(imageSliceActor);
-    renderer.resetCamera();
 
+    // Set up initial camera position
+    renderer.resetCamera();
     const camera = renderer.getActiveCamera();
     camera.azimuth(210);
     camera.elevation(30);
-    camera.zoom(1.5);
+    camera.zoom(1.3);
 
-    // Move camera position up to shift view up
+    // Move camera position with manual vertical offset
     const position = camera.getPosition();
-    camera.setPosition(position[0], position[1] - 30, position[2]);
+    camera.setPosition(position[0], position[1] + CAMERA_VERTICAL_OFFSET, position[2]);
     const focalPoint = camera.getFocalPoint();
-    camera.setFocalPoint(focalPoint[0], focalPoint[1] - 30, focalPoint[2]);
+    camera.setFocalPoint(focalPoint[0], focalPoint[1] + CAMERA_VERTICAL_OFFSET, focalPoint[2]);
+
+    // Save default camera state (before any user interaction)
+    defaultCameraState = {
+      position: [...camera.getPosition()],
+      focalPoint: [...camera.getFocalPoint()],
+      viewUp: [...camera.getViewUp()],
+      viewAngle: camera.getViewAngle(),
+      clippingRange: [...camera.getClippingRange()],
+      parallelScale: camera.getParallelScale()
+    };
 
     updateSlicePosition(66.67); // Start at 1/3 down from top
 
@@ -421,7 +437,29 @@ function loadVoxelSlice(bounds) {
     modeSelector.addEventListener('change', (event) => {
       setVisualizationMode(event.target.value);
     });
+
+    // Set up reset camera button
+    const resetCameraBtn = document.getElementById('reset-camera-btn');
+    if (resetCameraBtn) {
+      resetCameraBtn.addEventListener('click', () => {
+        resetCameraToDefault();
+        renderWindow.getRenderWindow().render();
+      });
+    }
   });
+}
+
+function resetCameraToDefault() {
+  if (!defaultCameraState) return;
+
+  const camera = renderer.getActiveCamera();
+  camera.setPosition(...defaultCameraState.position);
+  camera.setFocalPoint(...defaultCameraState.focalPoint);
+  camera.setViewUp(...defaultCameraState.viewUp);
+  camera.setViewAngle(defaultCameraState.viewAngle);
+  camera.setClippingRange(...defaultCameraState.clippingRange);
+  camera.setParallelScale(defaultCameraState.parallelScale);
+  renderer.resetCameraClippingRange();
 }
 
 let yOffset = 0; // Store the offset globally
@@ -550,5 +588,5 @@ function setVisualizationMode(mode) {
   // Re-render the scene
   renderWindow.getRenderWindow().render();
 
-  console.log(`Visualization mode set to: ${mode}`);
+  // console.log(`Visualization mode set to: ${mode}`);
 }

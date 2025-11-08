@@ -19,16 +19,17 @@
     #viz-mode-container {
       background: rgba(255, 255, 255, 0.9);
       padding: 10px;
+      padding-bottom: 30px;
       border-radius: 4px;
-      margin-bottom: 10px;
-      margin-top: 50px;
       z-index: 1000;
       position: relative;
-      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      width: 600px;
     }
     #controls-and-render {
       display: grid;
-      grid-template-columns: 120px 600px 120px;
+      grid-template-columns: 120px auto 120px;
       gap: 40px;
       align-items: center;
       justify-content: center;
@@ -39,6 +40,38 @@
       position: relative;
       width: 600px;
       height: 450px;
+    }
+    #viz-and-render {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+    #reset-camera-btn {
+      position: absolute;
+      bottom: -50px;
+      left: 0;
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      padding: 0;
+      z-index: 1000;
+    }
+    #reset-camera-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      border-color: #999;
+    }
+    #reset-camera-btn svg {
+      width: 24px;
+      height: 24px;
     }
     #loading-status {
       position: fixed;
@@ -56,6 +89,19 @@
       border-radius: 3px;
       z-index: 2000;
     }
+    #tissue-tooltip {
+      position: fixed;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 3000;
+      display: none;
+      white-space: nowrap;
+    }
     #status-indicator {
       width: 10px;
       height: 10px;
@@ -72,11 +118,12 @@
       background-color: #ef4444; /* red */
     }
     #slider-container {
-      height: 400px;
+      height: 450px;
       display: flex;
       flex-direction: column;
       align-items: center;
       z-index: 1000;
+      margin-top: 40px;
     }
     #depth-slider {
       writing-mode: vertical-lr;
@@ -93,7 +140,7 @@
     }
     #viz-mode-selector {
       font-size: 16px;
-      padding: 5px 10px;
+      padding: 5px 5px 5px 10px;
       border: none;
       border-radius: 0;
       background: transparent;
@@ -120,6 +167,7 @@
       opacity: 0;
       transition: opacity 0.2s;
       width: 120px;
+      margin-top: 55px;
     }
     #colorbar-container.visible {
       visibility: visible;
@@ -132,14 +180,14 @@
     }
     #colorbar {
       width: 25px;
-      height: 300px;
+      height: 420px;
       border: 1px solid #333;
     }
     #colorbar-tick-marks {
       position: absolute;
       left: 26px;
       top: 0;
-      height: 300px;
+      height: 420px;
       width: 5px;
     }
     .tick-mark {
@@ -153,7 +201,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 300px;
+      height: 420px;
       margin-left: 8px;
     }
     .colorbar-tick {
@@ -179,22 +227,38 @@
     <div id="status-indicator" class="loading"></div>
     <span id="status-text">Loading...</span>
   </div>
-  <div id="viz-mode-container">
-    <select id="viz-mode-selector">
-      <option value="default" selected>Default</option>
-      <option value="density">Density</option>
-    </select>
-  </div>
+  <div id="tissue-tooltip"></div>
   <div id="controls-and-render">
     <div id="colorbar-container">
       <div class="colorbar-title">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;kg/m³</div>
       <div id="colorbar-content">
-        <canvas id="colorbar" width="25" height="300"></canvas>
+        <canvas id="colorbar" width="25" height="420"></canvas>
         <div id="colorbar-tick-marks"></div>
         <div id="colorbar-ticks"></div>
       </div>
     </div>
-    <div id="render-wrapper"></div>
+    <div id="viz-and-render">
+      <div id="viz-mode-container">
+        <select id="viz-mode-selector">
+          <option value="default" selected>Default</option>
+          <option value="density">Density</option>
+        </select>
+      </div>
+      <div id="render-wrapper"></div>
+      <button id="reset-camera-btn" title="Reset camera">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- X axis (red) -->
+          <line x1="12" y1="12" x2="20" y2="12" stroke="#ff0000" />
+          <polygon points="20,12 18,11 18,13" fill="#ff0000" stroke="none" />
+          <!-- Y axis (green) -->
+          <line x1="12" y1="12" x2="12" y2="4" stroke="#00aa00" />
+          <polygon points="12,4 11,6 13,6" fill="#00aa00" stroke="none" />
+          <!-- Z axis (blue) -->
+          <line x1="12" y1="12" x2="6" y2="18" stroke="#0000ff" />
+          <polygon points="6,18 7.5,16.5 8,18.5" fill="#0000ff" stroke="none" />
+        </svg>
+      </button>
+    </div>
     <div id="slider-container">
       <input type="range" id="depth-slider" min="0" max="100" value="66.67" orient="vertical">
     </div>
