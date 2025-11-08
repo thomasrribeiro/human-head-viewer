@@ -1,0 +1,22 @@
+{
+  "name": "vtk-simple-cone",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@kitware/vtk.js": "^34.15.0",
+    "mathjs": "^15.1.0"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1",
+    "vite": "^7.2.2"
+  }
+}

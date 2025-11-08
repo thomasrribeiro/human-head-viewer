@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VTK Simple Cone</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #slider-container {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 1000;
+    }
+    #depth-slider {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 8px;
+      height: 100%;
+      background: #ddd;
+      outline: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    #depth-slider:hover {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="slider-container">
+    <input type="range" id="depth-slider" min="0" max="100" value="100" orient="vertical">
+  </div>
+  <script type="module" src="/src/viewer.js"></script>
+</body>
+</html>
