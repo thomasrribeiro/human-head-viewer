@@ -271,7 +271,6 @@ function loadVoxelSlice(bounds) {
 
     // Set up slider control
     const slider = document.getElementById('depth-slider');
-    slider.value = 66.67; // Set slider to match initial position
     slider.addEventListener('input', (event) => {
       const value = parseFloat(event.target.value);
       updateSlicePosition(value);
