@@ -9,12 +9,69 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      min-height: 0;
+    }
+    #viz-mode-container {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      margin-top: 50px;
+      z-index: 1000;
+      position: relative;
+      flex-shrink: 0;
+    }
+    #controls-and-render {
+      display: grid;
+      grid-template-columns: 120px 600px 120px;
+      gap: 40px;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      min-height: 0;
+    }
+    #render-wrapper {
+      position: relative;
+      width: 600px;
+      height: 450px;
+    }
+    #loading-status {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      color: #666;
+      font-style: italic;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 6px 12px;
+      border-radius: 3px;
+      z-index: 2000;
+    }
+    #status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #fbbf24; /* yellow for loading */
+    }
+    #status-indicator.loading {
+      background-color: #fbbf24; /* yellow */
+    }
+    #status-indicator.loaded {
+      background-color: #10b981; /* green */
+    }
+    #status-indicator.error {
+      background-color: #ef4444; /* red */
     }
     #slider-container {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
       height: 400px;
       display: flex;
       flex-direction: column;
@@ -34,11 +91,113 @@
     #depth-slider:hover {
       opacity: 1;
     }
+    #viz-mode-selector {
+      font-size: 16px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+      font-family: Arial, sans-serif;
+      color: #333;
+      outline: none;
+    }
+    #viz-mode-selector:hover {
+      color: #0066cc;
+    }
+    #viz-mode-selector:focus {
+      outline: none;
+    }
+    #colorbar-container {
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s;
+      width: 120px;
+    }
+    #colorbar-container.visible {
+      visibility: visible;
+      opacity: 1;
+    }
+    #colorbar-content {
+      display: flex;
+      align-items: stretch;
+      position: relative;
+    }
+    #colorbar {
+      width: 25px;
+      height: 300px;
+      border: 1px solid #333;
+    }
+    #colorbar-tick-marks {
+      position: absolute;
+      left: 26px;
+      top: 0;
+      height: 300px;
+      width: 5px;
+    }
+    .tick-mark {
+      position: absolute;
+      width: 5px;
+      height: 1px;
+      background: #333;
+      left: 0;
+    }
+    #colorbar-ticks {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 300px;
+      margin-left: 8px;
+    }
+    .colorbar-tick {
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #333;
+      white-space: nowrap;
+    }
+    .colorbar-title {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: bold;
+      color: #333;
+      text-align: left;
+      margin-bottom: 8px;
+      margin-left: 15px;
+      align-self: flex-start;
+    }
   </style>
 </head>
 <body>
-  <div id="slider-container">
-    <input type="range" id="depth-slider" min="0" max="100" value="66.67" orient="vertical">
+  <div id="loading-status">
+    <div id="status-indicator" class="loading"></div>
+    <span id="status-text">Loading...</span>
+  </div>
+  <div id="viz-mode-container">
+    <select id="viz-mode-selector">
+      <option value="default" selected>Default</option>
+      <option value="density">Density</option>
+    </select>
+  </div>
+  <div id="controls-and-render">
+    <div id="colorbar-container">
+      <div class="colorbar-title">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;kg/m³</div>
+      <div id="colorbar-content">
+        <canvas id="colorbar" width="25" height="300"></canvas>
+        <div id="colorbar-tick-marks"></div>
+        <div id="colorbar-ticks"></div>
+      </div>
+    </div>
+    <div id="render-wrapper"></div>
+    <div id="slider-container">
+      <input type="range" id="depth-slider" min="0" max="100" value="66.67" orient="vertical">
+    </div>
   </div>
   <script type="module" src="/src/viewer.js"></script>
 </body>

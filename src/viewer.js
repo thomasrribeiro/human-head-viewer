@@ -23,6 +23,7 @@ import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
 
 const renderWindow = vtkFullScreenRenderWindow.newInstance({
   background: [1, 1, 1],
+  container: document.getElementById('render-wrapper'),
 });
 const renderer = renderWindow.getRenderer();
 
@@ -32,7 +33,13 @@ const renderer = renderWindow.getRenderer();
 
 let tissueColorsByID = {};
 let tissueColorsByName = {};
+let tissueNamesByID = {}; // Map tissue ID to name
 let stlFiles = [];
+let densityByTissueName = {};
+let densityByTissueID = {};
+let visualizationMode = 'default'; // 'default' or 'density'
+let minDensity = Infinity;
+let maxDensity = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -50,6 +57,7 @@ async function loadTissueColors() {
     const color = [r, g, b];
     tissueColorsByID[id] = color;
     tissueColorsByName[name] = color;
+    tissueNamesByID[id] = name; // Store ID to name mapping
 
     // Build STL filename from tissue name
     const stlFilename = name.replace('/', '_') + '.stl';
@@ -60,9 +68,111 @@ async function loadTissueColors() {
   console.log(`Generated ${stlFiles.length} STL filenames`);
 }
 
+async function loadDensityData() {
+  const response = await fetch('/data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
+  const text = await response.text();
+  const lines = text.trim().split('\n');
+
+  // Find the column index for "Alternative Names"
+  const headerLine = lines[1];
+  const headers = headerLine.split('\t');
+  const altNamesIndex = headers.indexOf('Alternative Names');
+
+  console.log(`Alternative Names column index: ${altNamesIndex}`);
+  console.log(`Number of columns in header: ${headers.length}`);
+
+  // Skip header lines (first 3 lines: blank, main headers, sub-headers)
+  for (let i = 3; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue; // Skip empty lines
+
+    const parts = line.split('\t');
+
+    // First column is empty, actual data starts at index 1
+    const tissueName = parts[1];
+    const densityAvg = parseFloat(parts[2]);
+    const semcadNames = altNamesIndex >= 0 ? parts[altNamesIndex] : null;
+
+    // Debug first few rows
+    if (i < 6) {
+      console.log(`Row ${i}: tissue="${tissueName}", density=${densityAvg}, numCols=${parts.length}, altNames="${semcadNames}"`);
+    }
+
+    if (!isNaN(densityAvg) && densityAvg > 0) {
+      // Update min/max for normalization
+      minDensity = Math.min(minDensity, densityAvg);
+      maxDensity = Math.max(maxDensity, densityAvg);
+
+      // Parse alternative names separated by @
+      if (semcadNames && semcadNames !== 'None' && semcadNames.length > 0) {
+        const altNames = semcadNames.replace(/"/g, '').split('@');
+        altNames.forEach(altName => {
+          const cleanName = altName.trim();
+          if (cleanName && cleanName !== 'None') {
+            densityByTissueName[cleanName] = densityAvg;
+          }
+        });
+      }
+
+      // Also store by primary tissue name
+      densityByTissueName[tissueName] = densityAvg;
+    }
+  }
+
+  console.log(`Loaded density data for ${Object.keys(densityByTissueName).length} tissues`);
+  console.log(`Density range: ${minDensity} - ${maxDensity} kg/m³`);
+  console.log(`Sample densities: Dura=${densityByTissueName['Dura']}, Adrenal Gland=${densityByTissueName['Adrenal Gland']}`);
+}
+
+// Bone colormap: maps normalized value (0-1) to grayscale bone color
+function boneColormap(value) {
+  // Bone colormap: black to white through gray/brown tones
+  // Similar to MATLAB's bone colormap
+  const t = Math.max(0, Math.min(1, value)); // Clamp to [0, 1]
+
+  let r, g, b;
+  if (t < 0.375) {
+    // Dark blue-gray to gray
+    const s = t / 0.375;
+    r = 0.32 * s;
+    g = 0.32 * s;
+    b = 0.45 + 0.22 * s;
+  } else if (t < 0.75) {
+    // Gray to light bone color
+    const s = (t - 0.375) / 0.375;
+    r = 0.32 + 0.47 * s;
+    g = 0.32 + 0.47 * s;
+    b = 0.67 + 0.22 * s;
+  } else {
+    // Light bone to white
+    const s = (t - 0.75) / 0.25;
+    r = 0.79 + 0.21 * s;
+    g = 0.79 + 0.21 * s;
+    b = 0.89 + 0.11 * s;
+  }
+
+  return [r, g, b];
+}
+
+function getDensityColor(tissueName) {
+  const density = densityByTissueName[tissueName];
+  if (!density) {
+    return [0.5, 0.5, 0.5]; // Gray for unknown
+  }
+
+  // Normalize density to [0, 1] and use grayscale
+  const normalized = (density - minDensity) / (maxDensity - minDensity);
+  return [normalized, normalized, normalized];
+}
+
 function getTissueColor(filename) {
   // Strip .stl extension and look up by tissue name
   const tissueName = filename.replace('.stl', '').replace('_', '/');
+
+  if (visualizationMode === 'density') {
+    return getDensityColor(tissueName);
+  }
+
   return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
 }
 
@@ -80,10 +190,12 @@ clippingPlane.setNormal(0, -1, 0);
 clippingPlane.setOrigin(0, 1000, 0);
 
 const mappers = [];
+const actors = {}; // Store actors by filename for updates
 
 async function loadAllData() {
-  // Load tissue colors first
+  // Load tissue colors and density data
   await loadTissueColors();
+  await loadDensityData();
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -100,6 +212,9 @@ async function loadAllData() {
 
     reader.setUrl(basePath + filename).then(() => {
       renderer.addActor(actor);
+
+      // Store actor for later updates
+      actors[filename] = actor;
 
       // Assign anatomically correct color based on tissue type
       const rgb = getTissueColor(filename);
@@ -124,6 +239,15 @@ async function loadAllData() {
         console.log('STL bounds:', stlBounds);
         loadVoxelSlice(stlBounds);
       }
+    }).catch((error) => {
+      console.error(`Failed to load ${filename}:`, error);
+      // Update status to error
+      const statusIndicator = document.getElementById('status-indicator');
+      const statusText = document.getElementById('status-text');
+      if (statusIndicator && statusText) {
+        statusIndicator.className = 'error';
+        statusText.textContent = 'Failed to load';
+      }
     });
   });
 }
@@ -138,6 +262,7 @@ loadAllData();
 let imageSliceActor = null;
 let voxelData = null;
 let stlBounds = null;
+let voxelColorTransferFunction = null;
 
 function loadVoxelSlice(bounds) {
   stlBounds = bounds;
@@ -201,10 +326,10 @@ function loadVoxelSlice(bounds) {
     console.log('STL center:', stlCenterX, stlCenterY, stlCenterZ);
 
     // Create color transfer function for voxel data
-    const ctfun = vtkColorTransferFunction.newInstance();
+    voxelColorTransferFunction = vtkColorTransferFunction.newInstance();
     for (let i = 0; i <= 116; i++) {
       const rgb = tissueColorsByID[i] || [0.5, 0.5, 0.5];
-      ctfun.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
+      voxelColorTransferFunction.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
     }
 
     // Create opacity transfer function - make background (ID 0) transparent
@@ -254,7 +379,7 @@ function loadVoxelSlice(bounds) {
 
     // Set the lookup table and opacity on the property
     const sliceProperty = imageSliceActor.getProperty();
-    sliceProperty.setRGBTransferFunction(ctfun);
+    sliceProperty.setRGBTransferFunction(voxelColorTransferFunction);
     sliceProperty.setPiecewiseFunction(ofun);
     sliceProperty.setUseLookupTableScalarRange(true);
 
@@ -264,16 +389,37 @@ function loadVoxelSlice(bounds) {
     const camera = renderer.getActiveCamera();
     camera.azimuth(210);
     camera.elevation(30);
+    camera.zoom(1.5);
+
+    // Move camera position up to shift view up
+    const position = camera.getPosition();
+    camera.setPosition(position[0], position[1] - 30, position[2]);
+    const focalPoint = camera.getFocalPoint();
+    camera.setFocalPoint(focalPoint[0], focalPoint[1] - 30, focalPoint[2]);
 
     updateSlicePosition(66.67); // Start at 1/3 down from top
 
     renderWindow.getRenderWindow().render();
+
+    // Update loading status to success
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    if (statusIndicator && statusText) {
+      statusIndicator.className = 'loaded';
+      statusText.textContent = 'Model loaded!';
+    }
 
     // Set up slider control
     const slider = document.getElementById('depth-slider');
     slider.addEventListener('input', (event) => {
       const value = parseFloat(event.target.value);
       updateSlicePosition(value);
+    });
+
+    // Set up visualization mode dropdown
+    const modeSelector = document.getElementById('viz-mode-selector');
+    modeSelector.addEventListener('change', (event) => {
+      setVisualizationMode(event.target.value);
     });
   });
 }
@@ -309,4 +455,100 @@ function updateSlicePosition(sliderValue) {
   imageSliceActor.getMapper().setSlice(clampedIndex);
 
   renderWindow.getRenderWindow().render();
+}
+
+// Draw colorbar on canvas
+function drawColorbar() {
+  const canvas = document.getElementById('colorbar');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Draw gradient from top (high density) to bottom (low density)
+  for (let y = 0; y < height; y++) {
+    const value = y / height; // top = 0 (high), bottom = 1 (low)
+    const gray = Math.floor((1 - value) * 255); // Invert for grayscale
+
+    ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+    ctx.fillRect(0, y, width, 1);
+  }
+
+  // Update labels and tick marks - 7 ticks total
+  const tickContainer = document.getElementById('colorbar-tick-marks');
+  const ticksContainer = document.getElementById('colorbar-ticks');
+  tickContainer.innerHTML = '';
+  ticksContainer.innerHTML = '';
+
+  const numTicks = 7;
+  for (let i = 0; i < numTicks; i++) {
+    const pos = i / (numTicks - 1); // 0 to 1
+
+    // Draw tick mark
+    const tick = document.createElement('div');
+    tick.className = 'tick-mark';
+    tick.style.top = `${pos * height}px`;
+    tickContainer.appendChild(tick);
+
+    // Add label
+    const label = document.createElement('div');
+    label.className = 'colorbar-tick';
+    const value = maxDensity - (pos * (maxDensity - minDensity));
+    label.textContent = Math.round(value);
+    ticksContainer.appendChild(label);
+  }
+}
+
+// Function to switch visualization modes
+function setVisualizationMode(mode) {
+  visualizationMode = mode;
+
+  // Show/hide colorbar
+  const colorbarContainer = document.getElementById('colorbar-container');
+  if (mode === 'density') {
+    colorbarContainer.classList.add('visible');
+    drawColorbar();
+  } else {
+    colorbarContainer.classList.remove('visible');
+  }
+
+  // Update STL surface colors
+  Object.keys(actors).forEach(filename => {
+    const actor = actors[filename];
+    const rgb = getTissueColor(filename);
+    actor.getProperty().setColor(rgb[0], rgb[1], rgb[2]);
+  });
+
+  // Update voxel slice colors
+  if (voxelColorTransferFunction) {
+    voxelColorTransferFunction.removeAllPoints();
+
+    if (mode === 'density') {
+      // Build density-based color mapping for each tissue ID
+      for (let i = 0; i <= 116; i++) {
+        const tissueName = tissueNamesByID[i];
+        let rgb;
+
+        if (tissueName) {
+          rgb = getDensityColor(tissueName);
+        } else {
+          rgb = [0.5, 0.5, 0.5]; // Default gray for unknown tissues
+        }
+
+        voxelColorTransferFunction.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
+      }
+    } else {
+      // Restore default anatomical colors
+      for (let i = 0; i <= 116; i++) {
+        const rgb = tissueColorsByID[i] || [0.5, 0.5, 0.5];
+        voxelColorTransferFunction.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
+      }
+    }
+  }
+
+  // Re-render the scene
+  renderWindow.getRenderWindow().render();
+
+  console.log(`Visualization mode set to: ${mode}`);
 }
