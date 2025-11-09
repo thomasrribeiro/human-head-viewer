@@ -2,7 +2,7 @@
 
 Interactive human head model in the browser. 
 
-![Human Head Model](assets/human_head.png)
+<img src="assets/human_head.png" alt="Human Head Model" width="50%">
 
 *Supports mechanical, thermal and electromagnetic tissue property visualization.*
 
