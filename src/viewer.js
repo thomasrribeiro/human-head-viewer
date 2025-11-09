@@ -98,6 +98,10 @@ let minNonlinearityParameter = Infinity;
 let maxNonlinearityParameter = -Infinity;
 let minRelaxationTime = Infinity;
 let maxRelaxationTime = -Infinity;
+let waterContentData = {}; // Water content for each tissue
+let waterContentByTissueName = {};
+let minWaterContent = Infinity;
+let maxWaterContent = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -264,6 +268,31 @@ async function loadNonlinearityParameterData() {
 async function loadRelaxationTimeData() {
   const response = await fetch('/data/relaxation_times.json');
   relaxationTimeData = await response.json();
+}
+
+async function loadWaterContentData() {
+  const response = await fetch('/data/water_content.json');
+  waterContentData = await response.json();
+
+  // Process water content for all tissues
+  const waterValues = [];
+
+  Object.keys(waterContentData).forEach(tissueName => {
+    const tissueData = waterContentData[tissueName];
+    const waterContent = tissueData.waterContent;
+
+    waterContentByTissueName[tissueName] = waterContent;
+
+    if (waterContent !== null && waterContent > 0) {
+      waterValues.push(waterContent);
+    }
+  });
+
+  // Use 10th to 90th percentile bounds
+  if (waterValues.length > 0) {
+    minWaterContent = calculatePercentile(waterValues, 10);
+    maxWaterContent = calculatePercentile(waterValues, 90);
+  }
 }
 
 // Compute relaxation times for current field strength and parameter
@@ -532,6 +561,13 @@ function getTissueColor(filename) {
         return null; // Transparent
       }
       return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
+    case 'waterContent':
+      // Return null for tissues without data (will make them transparent)
+      const waterValue = waterContentByTissueName[tissueName];
+      if (waterValue === null || waterValue === undefined) {
+        return null; // Transparent
+      }
+      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, ylgnbuColormap);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -561,6 +597,7 @@ async function loadAllData() {
   await loadAcousticAttenuationData();
   await loadNonlinearityParameterData();
   await loadRelaxationTimeData();
+  await loadWaterContentData();
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -1119,6 +1156,12 @@ function drawColorbar(mode) {
       maxVal = maxRelaxationTime;
       units = 'ms';
       break;
+    case 'waterContent':
+      colormapFunc = ylgnbuColormap;
+      minVal = minWaterContent;
+      maxVal = maxWaterContent;
+      units = '     %';
+      break;
     default:
       return;
   }
@@ -1334,6 +1377,15 @@ function setVisualizationMode(mode) {
                 rgb = null; // Will be handled below for transparency
               } else {
                 rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
+              }
+              break;
+            case 'waterContent':
+              // Check if tissue has data
+              const waterValue = waterContentByTissueName[tissueName];
+              if (waterValue === null || waterValue === undefined) {
+                rgb = null; // Will be handled below for transparency
+              } else {
+                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, ylgnbuColormap);
               }
               break;
             default:
