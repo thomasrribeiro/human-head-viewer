@@ -58,6 +58,7 @@ let thermalConductivityByTissueName = {};
 let heatTransferRateByTissueName = {};
 let heatGenerationRateByTissueName = {};
 let speedOfSoundByTissueName = {};
+let lfConductivityByTissueName = {};
 let visualizationMode = 'default';
 let minDensity = Infinity;
 let maxDensity = -Infinity;
@@ -71,6 +72,8 @@ let minHeatGenerationRate = Infinity;
 let maxHeatGenerationRate = -Infinity;
 let minSpeedOfSound = Infinity;
 let maxSpeedOfSound = -Infinity;
+let minLFConductivity = Infinity;
+let maxLFConductivity = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -127,6 +130,7 @@ async function loadDensityData() {
   const heatTransferRateValues = [];
   const heatGenerationRateValues = [];
   const speedOfSoundValues = [];
+  const lfConductivityValues = [];
 
   // Skip header lines (first 3 lines: blank, main headers, sub-headers)
   for (let i = 3; i < lines.length; i++) {
@@ -143,6 +147,7 @@ async function loadDensityData() {
     const heatTransferRateAvg = parseFloat(parts[14]);
     const heatGenerationRateAvg = parseFloat(parts[18]);
     const speedOfSoundAvg = parseFloat(parts[65]);
+    const lfConductivityAvg = parseFloat(parts[22]); // LF Conductivity column
     const semcadNames = altNamesIndex >= 0 ? parts[altNamesIndex] : null;
 
     // Helper function to store value by tissue name and alternative names
@@ -170,21 +175,24 @@ async function loadDensityData() {
     storeValue(heatTransferRateByTissueName, heatTransferRateValues, heatTransferRateAvg);
     storeValue(heatGenerationRateByTissueName, heatGenerationRateValues, heatGenerationRateAvg);
     storeValue(speedOfSoundByTissueName, speedOfSoundValues, speedOfSoundAvg);
+    storeValue(lfConductivityByTissueName, lfConductivityValues, lfConductivityAvg);
   }
 
-  // Calculate 15th and 85th percentiles for each property (aggressive clipping for soft tissue)
-  minDensity = calculatePercentile(densityValues, 15);
-  maxDensity = calculatePercentile(densityValues, 85);
-  minHeatCapacity = calculatePercentile(heatCapacityValues, 15);
-  maxHeatCapacity = calculatePercentile(heatCapacityValues, 85);
-  minThermalConductivity = calculatePercentile(thermalConductivityValues, 15);
-  maxThermalConductivity = calculatePercentile(thermalConductivityValues, 85);
-  minHeatTransferRate = calculatePercentile(heatTransferRateValues, 15);
-  maxHeatTransferRate = calculatePercentile(heatTransferRateValues, 85);
-  minHeatGenerationRate = calculatePercentile(heatGenerationRateValues, 15);
-  maxHeatGenerationRate = calculatePercentile(heatGenerationRateValues, 85);
-  minSpeedOfSound = calculatePercentile(speedOfSoundValues, 15);
-  maxSpeedOfSound = calculatePercentile(speedOfSoundValues, 85);
+  // Use 10th to 90th percentile bounds
+  minDensity = calculatePercentile(densityValues, 10);
+  maxDensity = calculatePercentile(densityValues, 90);
+  minHeatCapacity = calculatePercentile(heatCapacityValues, 10);
+  maxHeatCapacity = calculatePercentile(heatCapacityValues, 90);
+  minThermalConductivity = calculatePercentile(thermalConductivityValues, 10);
+  maxThermalConductivity = calculatePercentile(thermalConductivityValues, 90);
+  minHeatTransferRate = calculatePercentile(heatTransferRateValues, 10);
+  maxHeatTransferRate = calculatePercentile(heatTransferRateValues, 90);
+  minHeatGenerationRate = calculatePercentile(heatGenerationRateValues, 10);
+  maxHeatGenerationRate = calculatePercentile(heatGenerationRateValues, 90);
+  minSpeedOfSound = calculatePercentile(speedOfSoundValues, 10);
+  maxSpeedOfSound = calculatePercentile(speedOfSoundValues, 90);
+  minLFConductivity = calculatePercentile(lfConductivityValues, 10);
+  maxLFConductivity = calculatePercentile(lfConductivityValues, 90);
 }
 
 // Bone colormap: maps normalized value (0-1) to grayscale bone color
@@ -251,42 +259,77 @@ function seismicColormap(value) {
   }
 }
 
-// ColorBrewer YlGnBu (Yellow-Green-Blue) colormap
+// ColorBrewer RdBu (Red-Blue diverging) colormap for mechanical properties
+function rdbuColormap(value) {
+  const t = Math.max(0, Math.min(1, value));
+
+  // ColorBrewer RdBu diverging scheme (red at low, white at middle, blue at high)
+  if (t < 0.5) {
+    // Red to white
+    const s = t / 0.5;
+    return [0.698 + s * (1 - 0.698), 0.094 + s * (1 - 0.094), 0.169 + s * (1 - 0.169)];
+  } else {
+    // White to blue
+    const s = (t - 0.5) / 0.5;
+    return [1 - s * (1 - 0.019), 1 - s * (1 - 0.188), 1 - s * (1 - 0.380)];
+  }
+}
+
+// Blue-Yellow colormap for electromagnetic properties
+function blueYellowColormap(value) {
+  const t = Math.max(0, Math.min(1, value));
+
+  // Blue to yellow
+  if (t < 0.5) {
+    // Blue to cyan
+    const s = t / 0.5;
+    return [0, s, 1];
+  } else {
+    // Cyan to yellow
+    const s = (t - 0.5) / 0.5;
+    return [s, 1, 1 - s];
+  }
+}
+
+// ColorBrewer YlGnBu (Yellow-Green-Blue) colormap - flipped to go from blue to yellow
 function ylgnbuColormap(value) {
   const t = Math.max(0, Math.min(1, value));
 
-  // ColorBrewer YlGnBu 9-class scheme (reversed: yellow at low, blue at high)
-  if (t < 0.125) {
+  // Flip the colormap: blue at low values, yellow at high values
+  const flipped = 1 - t;
+
+  // ColorBrewer YlGnBu 9-class scheme (now: blue at low, yellow at high)
+  if (flipped < 0.125) {
     // #ffffd9 to #edf8b1
-    const s = t / 0.125;
+    const s = flipped / 0.125;
     return [1, 1, 0.851 + s * (0.933 - 0.851)];
-  } else if (t < 0.25) {
+  } else if (flipped < 0.25) {
     // #edf8b1 to #c7e9b4
-    const s = (t - 0.125) / 0.125;
+    const s = (flipped - 0.125) / 0.125;
     return [0.933 - s * (0.933 - 0.780), 0.973 - s * (0.973 - 0.914), 0.694 + s * (0.706 - 0.694)];
-  } else if (t < 0.375) {
+  } else if (flipped < 0.375) {
     // #c7e9b4 to #7fcdbb
-    const s = (t - 0.25) / 0.125;
+    const s = (flipped - 0.25) / 0.125;
     return [0.780 - s * (0.780 - 0.498), 0.914 - s * (0.914 - 0.804), 0.706 + s * (0.733 - 0.706)];
-  } else if (t < 0.5) {
+  } else if (flipped < 0.5) {
     // #7fcdbb to #41b6c4
-    const s = (t - 0.375) / 0.125;
+    const s = (flipped - 0.375) / 0.125;
     return [0.498 - s * (0.498 - 0.255), 0.804 - s * (0.804 - 0.714), 0.733 + s * (0.769 - 0.733)];
-  } else if (t < 0.625) {
+  } else if (flipped < 0.625) {
     // #41b6c4 to #1d91c0
-    const s = (t - 0.5) / 0.125;
+    const s = (flipped - 0.5) / 0.125;
     return [0.255 - s * (0.255 - 0.114), 0.714 - s * (0.714 - 0.569), 0.769 - s * (0.769 - 0.753)];
-  } else if (t < 0.75) {
+  } else if (flipped < 0.75) {
     // #1d91c0 to #225ea8
-    const s = (t - 0.625) / 0.125;
+    const s = (flipped - 0.625) / 0.125;
     return [0.114 + s * (0.133 - 0.114), 0.569 - s * (0.569 - 0.369), 0.753 - s * (0.753 - 0.659)];
-  } else if (t < 0.875) {
+  } else if (flipped < 0.875) {
     // #225ea8 to #253494
-    const s = (t - 0.75) / 0.125;
+    const s = (flipped - 0.75) / 0.125;
     return [0.133 + s * (0.145 - 0.133), 0.369 - s * (0.369 - 0.204), 0.659 - s * (0.659 - 0.580)];
   } else {
     // #253494 to #081d58
-    const s = (t - 0.875) / 0.125;
+    const s = (flipped - 0.875) / 0.125;
     return [0.145 - s * (0.145 - 0.031), 0.204 - s * (0.204 - 0.114), 0.580 - s * (0.580 - 0.345)];
   }
 }
@@ -303,7 +346,7 @@ function getDensityColor(tissueName) {
 
 function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc) {
   const value = propertyMap[tissueName];
-  if (!value) {
+  if (!value || value <= 0) {
     return [0.5, 0.5, 0.5];
   }
   const normalized = (value - minVal) / (maxVal - minVal);
@@ -317,7 +360,9 @@ function getTissueColor(filename) {
 
   switch (visualizationMode) {
     case 'density':
-      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, ylgnbuColormap);
+      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap);
+    case 'speedOfSound':
+      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
     case 'heatCapacity':
       return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
     case 'thermalConductivity':
@@ -326,8 +371,8 @@ function getTissueColor(filename) {
       return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap);
     case 'heatGenerationRate':
       return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
-    case 'speedOfSound':
-      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, ylgnbuColormap);
+    case 'lfConductivity':
+      return getPropertyColor(tissueName, lfConductivityByTissueName, minLFConductivity, maxLFConductivity, ylgnbuColormap);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -726,10 +771,16 @@ function drawColorbar(mode) {
       units = null; // No units for default
       break;
     case 'density':
-      colormapFunc = ylgnbuColormap;
+      colormapFunc = rdbuColormap;
       minVal = minDensity;
       maxVal = maxDensity;
       units = 'kg/m³';
+      break;
+    case 'speedOfSound':
+      colormapFunc = rdbuColormap;
+      minVal = minSpeedOfSound;
+      maxVal = maxSpeedOfSound;
+      units = 'm/s';
       break;
     case 'heatCapacity':
       colormapFunc = hotColormap;
@@ -755,11 +806,11 @@ function drawColorbar(mode) {
       maxVal = maxHeatGenerationRate;
       units = 'W/kg';
       break;
-    case 'speedOfSound':
+    case 'lfConductivity':
       colormapFunc = ylgnbuColormap;
-      minVal = minSpeedOfSound;
-      maxVal = maxSpeedOfSound;
-      units = 'm/s';
+      minVal = minLFConductivity;
+      maxVal = maxLFConductivity;
+      units = 'S/m';
       break;
     default:
       return;
@@ -813,6 +864,7 @@ function drawColorbar(mode) {
 
   if (mode !== 'default') {
     const numTicks = 7;
+
     for (let i = 0; i < numTicks; i++) {
       const pos = i / (numTicks - 1); // 0 to 1
 
@@ -822,7 +874,7 @@ function drawColorbar(mode) {
       tick.style.top = `${pos * height}px`;
       tickContainer.appendChild(tick);
 
-      // Add label
+      // Add label with linear spacing
       const label = document.createElement('div');
       label.className = 'colorbar-tick';
       const value = maxVal - (pos * (maxVal - minVal));
@@ -910,7 +962,10 @@ function setVisualizationMode(mode) {
         if (tissueName) {
           switch (mode) {
             case 'density':
-              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, ylgnbuColormap);
+              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap);
+              break;
+            case 'speedOfSound':
+              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
               break;
             case 'heatCapacity':
               rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
@@ -924,8 +979,8 @@ function setVisualizationMode(mode) {
             case 'heatGenerationRate':
               rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
               break;
-            case 'speedOfSound':
-              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, ylgnbuColormap);
+            case 'lfConductivity':
+              rgb = getPropertyColor(tissueName, lfConductivityByTissueName, minLFConductivity, maxLFConductivity, ylgnbuColormap);
               break;
             default:
               rgb = [0.5, 0.5, 0.5];
