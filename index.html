@@ -24,7 +24,51 @@
       position: relative;
       display: flex;
       justify-content: center;
+      align-items: center;
+      gap: 0px;
       width: 600px;
+    }
+    #frequency-controls {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      margin-left: 30px;
+    }
+    #frequency-controls.visible {
+      display: flex;
+    }
+    #frequency-input {
+      width: 80px;
+      padding: 4px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    #frequency-unit {
+      padding: 4px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+    }
+    #compute-frequency-btn {
+      padding: 4px 12px;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    #compute-frequency-btn:hover {
+      background: #0052a3;
+    }
+    #frequency-label {
+      color: #666;
+      font-size: 13px;
     }
     #controls-and-render {
       position: relative;
@@ -225,7 +269,7 @@
     .dropdown-group-label {
       padding: 6px 12px;
       padding-top: 8px;
-      font-weight: 600;
+      font-weight: normal;
       color: #888;
       background: white;
       font-size: 13px;
@@ -331,7 +375,8 @@
           <div id="viz-mode-dropdown" class="dropdown-hidden">
             <div class="dropdown-item" data-value="default">Select Property</div>
             <div class="dropdown-group-label">Electromagnetic</div>
-            <div class="dropdown-item" data-value="lfConductivity">LF Conductivity</div>
+            <div class="dropdown-item" data-value="conductivity">Conductivity</div>
+            <div class="dropdown-item" data-value="permittivity">Permittivity</div>
             <div class="dropdown-group-label">Mechanical</div>
             <div class="dropdown-item" data-value="density">Density</div>
             <div class="dropdown-item" data-value="speedOfSound">Speed of Sound</div>
@@ -345,6 +390,17 @@
         <button id="reset-camera-btn" title="Reset camera" style="opacity: 0;">
           <img src="/assets/refresh.png" alt="Reset" style="width: 18px; height: 18px;">
         </button>
+        <div id="frequency-controls">
+          <span id="frequency-label">Frequency:</span>
+          <input type="text" id="frequency-input" value="100" placeholder="e.g., 100">
+          <select id="frequency-unit">
+            <option value="1">Hz</option>
+            <option value="1000">kHz</option>
+            <option value="1000000" selected>MHz</option>
+            <option value="1000000000">GHz</option>
+          </select>
+          <button id="compute-frequency-btn">Compute</button>
+        </div>
       </div>
       <div id="render-wrapper"></div>
     </div>

@@ -19,6 +19,7 @@ import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
 import vtkOrientationMarkerWidget from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget';
 import vtkAnnotatedCubeActor from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor';
 import vtkAxesActor from '@kitware/vtk.js/Rendering/Core/AxesActor';
+import { calculateElectromagneticProperties, parseFrequencyInput, formatFrequency } from './cole-cole.js';
 
 // ----------------------------------------------------------------------------
 // Standard rendering code setup
@@ -59,6 +60,10 @@ let heatTransferRateByTissueName = {};
 let heatGenerationRateByTissueName = {};
 let speedOfSoundByTissueName = {};
 let lfConductivityByTissueName = {};
+let dielectricPropertiesData = {}; // Cole-Cole parameters for each tissue
+let conductivityByTissueName = {};
+let permittivityByTissueName = {};
+let currentFrequency = 100e6; // Default: 100 MHz
 let visualizationMode = 'default';
 let minDensity = Infinity;
 let maxDensity = -Infinity;
@@ -74,6 +79,10 @@ let minSpeedOfSound = Infinity;
 let maxSpeedOfSound = -Infinity;
 let minLFConductivity = Infinity;
 let maxLFConductivity = -Infinity;
+let minConductivity = Infinity;
+let maxConductivity = -Infinity;
+let minPermittivity = Infinity;
+let maxPermittivity = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -193,6 +202,42 @@ async function loadDensityData() {
   maxSpeedOfSound = calculatePercentile(speedOfSoundValues, 90);
   minLFConductivity = calculatePercentile(lfConductivityValues, 10);
   maxLFConductivity = calculatePercentile(lfConductivityValues, 90);
+}
+
+// Load dielectric properties and compute electromagnetic properties at current frequency
+async function loadDielectricProperties() {
+  const response = await fetch('/data/dielectric_properties.json');
+  dielectricPropertiesData = await response.json();
+
+  // Compute properties at current frequency
+  computeElectromagneticProperties(currentFrequency);
+}
+
+// Compute conductivity and permittivity for all tissues at given frequency
+function computeElectromagneticProperties(frequency) {
+  const conductivityValues = [];
+  const permittivityValues = [];
+
+  Object.keys(dielectricPropertiesData).forEach(tissueName => {
+    const tissueData = dielectricPropertiesData[tissueName];
+    const props = calculateElectromagneticProperties(tissueData, frequency);
+
+    conductivityByTissueName[tissueName] = props.conductivity;
+    permittivityByTissueName[tissueName] = props.permittivity;
+
+    if (props.conductivity > 0) {
+      conductivityValues.push(props.conductivity);
+    }
+    if (props.permittivity > 0) {
+      permittivityValues.push(props.permittivity);
+    }
+  });
+
+  // Use 10th to 90th percentile bounds
+  minConductivity = calculatePercentile(conductivityValues, 10);
+  maxConductivity = calculatePercentile(conductivityValues, 90);
+  minPermittivity = calculatePercentile(permittivityValues, 10);
+  maxPermittivity = calculatePercentile(permittivityValues, 90);
 }
 
 // Bone colormap: maps normalized value (0-1) to grayscale bone color
@@ -371,8 +416,10 @@ function getTissueColor(filename) {
       return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap);
     case 'heatGenerationRate':
       return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
-    case 'lfConductivity':
-      return getPropertyColor(tissueName, lfConductivityByTissueName, minLFConductivity, maxLFConductivity, ylgnbuColormap);
+    case 'conductivity':
+      return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap);
+    case 'permittivity':
+      return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -395,9 +442,10 @@ const mappers = [];
 const actors = {}; // Store actors by filename for updates
 
 async function loadAllData() {
-  // Load tissue colors and density data
+  // Load tissue colors, density, and dielectric data
   await loadTissueColors();
   await loadDensityData();
+  await loadDielectricProperties();
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -684,6 +732,14 @@ function loadVoxelSlice(bounds) {
         modeCurrent.textContent = text;
         modeDropdown.classList.add('dropdown-hidden');
         setVisualizationMode(value);
+
+        // Show/hide frequency controls for electromagnetic properties
+        const frequencyControls = document.getElementById('frequency-controls');
+        if (value === 'conductivity' || value === 'permittivity') {
+          frequencyControls.classList.add('visible');
+        } else {
+          frequencyControls.classList.remove('visible');
+        }
       }
     });
 
@@ -700,6 +756,69 @@ function loadVoxelSlice(bounds) {
       resetCameraBtn.addEventListener('click', () => {
         resetCameraToDefault();
         renderWindow.getRenderWindow().render();
+      });
+    }
+
+    // Set up frequency compute button
+    const computeFrequencyBtn = document.getElementById('compute-frequency-btn');
+    const frequencyInput = document.getElementById('frequency-input');
+    const frequencyUnit = document.getElementById('frequency-unit');
+
+    if (computeFrequencyBtn && frequencyInput && frequencyUnit) {
+      // Validate numeric input only
+      frequencyInput.addEventListener('input', (event) => {
+        const value = event.target.value;
+        // Allow only numbers and decimal point
+        if (value && !/^\d*\.?\d*$/.test(value)) {
+          alert('Please enter only numeric values.');
+          event.target.value = value.slice(0, -1); // Remove last character
+        }
+      });
+
+      computeFrequencyBtn.addEventListener('click', () => {
+        const inputValue = frequencyInput.value.trim();
+
+        // Check if empty
+        if (!inputValue) {
+          alert('Please enter a frequency value.');
+          return;
+        }
+
+        const numValue = parseFloat(inputValue);
+
+        // Check if valid number
+        if (isNaN(numValue) || numValue <= 0) {
+          alert('Please enter a valid positive number.');
+          return;
+        }
+
+        // Get unit multiplier
+        const unitMultiplier = parseFloat(frequencyUnit.value);
+        const frequency = numValue * unitMultiplier;
+
+        // Validate range: 10 Hz to 100 GHz
+        if (frequency < 10 || frequency > 100e9) {
+          alert('Please choose a frequency between 10 Hz and 100 GHz.');
+          return;
+        }
+
+        // Update current frequency and recompute properties
+        currentFrequency = frequency;
+        computeElectromagneticProperties(frequency);
+
+        // Update visualization if in conductivity or permittivity mode
+        if (visualizationMode === 'conductivity' || visualizationMode === 'permittivity') {
+          setVisualizationMode(visualizationMode);
+        }
+
+        console.log(`Computed electromagnetic properties at ${formatFrequency(frequency)}`);
+      });
+
+      // Allow Enter key to compute
+      frequencyInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+          computeFrequencyBtn.click();
+        }
       });
     }
   });
@@ -806,11 +925,17 @@ function drawColorbar(mode) {
       maxVal = maxHeatGenerationRate;
       units = 'W/kg';
       break;
-    case 'lfConductivity':
+    case 'conductivity':
       colormapFunc = ylgnbuColormap;
-      minVal = minLFConductivity;
-      maxVal = maxLFConductivity;
+      minVal = minConductivity;
+      maxVal = maxConductivity;
       units = 'S/m';
+      break;
+    case 'permittivity':
+      colormapFunc = ylgnbuColormap;
+      minVal = minPermittivity;
+      maxVal = maxPermittivity;
+      units = 'ε_r';
       break;
     default:
       return;
@@ -878,7 +1003,14 @@ function drawColorbar(mode) {
       const label = document.createElement('div');
       label.className = 'colorbar-tick';
       const value = maxVal - (pos * (maxVal - minVal));
-      label.textContent = Math.round(value);
+
+      // Use scientific notation for conductivity and permittivity if values are small
+      if ((mode === 'conductivity' || mode === 'permittivity') && Math.abs(value) < 1) {
+        label.textContent = value.toExponential(1);
+      } else {
+        label.textContent = Math.round(value);
+      }
+
       ticksContainer.appendChild(label);
     }
   }
@@ -979,8 +1111,11 @@ function setVisualizationMode(mode) {
             case 'heatGenerationRate':
               rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
               break;
-            case 'lfConductivity':
-              rgb = getPropertyColor(tissueName, lfConductivityByTissueName, minLFConductivity, maxLFConductivity, ylgnbuColormap);
+            case 'conductivity':
+              rgb = getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap);
+              break;
+            case 'permittivity':
+              rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
               break;
             default:
               rgb = [0.5, 0.5, 0.5];
