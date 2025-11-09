@@ -66,6 +66,8 @@ let conductivityByTissueName = {};
 let permittivityByTissueName = {};
 let acousticAttenuationData = {}; // Attenuation parameters {alpha0, b} for each tissue
 let attenuationConstantByTissueName = {};
+let nonlinearityParameterData = {}; // B/A parameter for each tissue
+let nonlinearityParameterByTissueName = {};
 let currentFrequency = 100e6; // Default: 100 MHz (for electromagnetic and acoustic)
 let visualizationMode = 'default';
 let minDensity = Infinity;
@@ -88,6 +90,8 @@ let minPermittivity = Infinity;
 let maxPermittivity = -Infinity;
 let minAttenuationConstant = Infinity;
 let maxAttenuationConstant = -Infinity;
+let minNonlinearityParameter = Infinity;
+let maxNonlinearityParameter = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -224,6 +228,31 @@ async function loadAcousticAttenuationData() {
 
   // Compute attenuation at current frequency
   computeAcousticAttenuation(currentFrequency);
+}
+
+async function loadNonlinearityParameterData() {
+  const response = await fetch('/data/nonlinearity_parameter.json');
+  nonlinearityParameterData = await response.json();
+
+  // Process nonlinearity parameter for all tissues
+  const baValues = [];
+
+  Object.keys(nonlinearityParameterData).forEach(tissueName => {
+    const tissueData = nonlinearityParameterData[tissueName];
+    const baValue = tissueData.nonlinearityParameter;
+
+    nonlinearityParameterByTissueName[tissueName] = baValue;
+
+    if (baValue !== null && baValue > 0) {
+      baValues.push(baValue);
+    }
+  });
+
+  // Use full min/max range for better differentiation (data already has limited variation)
+  if (baValues.length > 0) {
+    minNonlinearityParameter = Math.min(...baValues);
+    maxNonlinearityParameter = Math.max(...baValues);
+  }
 }
 
 // Compute conductivity and permittivity for all tissues at given frequency
@@ -443,6 +472,13 @@ function getTissueColor(filename) {
       return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
     case 'attenuationConstant':
       return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
+    case 'nonlinearityParameter':
+      // Return null for tissues without data (will make them transparent)
+      const baValue = nonlinearityParameterByTissueName[tissueName];
+      if (baValue === null || baValue === undefined) {
+        return null; // Transparent
+      }
+      return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap);
     case 'heatCapacity':
       return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
     case 'thermalConductivity':
@@ -482,6 +518,7 @@ async function loadAllData() {
   await loadDensityData();
   await loadDielectricProperties();
   await loadAcousticAttenuationData();
+  await loadNonlinearityParameterData();
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -506,12 +543,18 @@ async function loadAllData() {
       const rgb = getTissueColor(filename);
 
       const property = actor.getProperty();
-      property.setColor(rgb[0], rgb[1], rgb[2]);
-      property.setAmbient(0.5);
-      property.setDiffuse(0.8);
-      property.setSpecular(0.1);
-      property.setSpecularPower(10);
-      property.setOpacity(0.2); // More transparent to see the slice
+
+      // Handle transparency for tissues without data
+      if (rgb === null) {
+        property.setOpacity(0); // Fully transparent
+      } else {
+        property.setColor(rgb[0], rgb[1], rgb[2]);
+        property.setAmbient(0.5);
+        property.setDiffuse(0.8);
+        property.setSpecular(0.1);
+        property.setSpecularPower(10);
+        property.setOpacity(0.2); // More transparent to see the slice
+      }
 
       // Force color mode
       mapper.setScalarVisibility(false);
@@ -557,6 +600,7 @@ let imageSliceActor = null;
 let voxelData = null;
 let stlBounds = null;
 let voxelColorTransferFunction = null;
+let voxelOpacityFunction = null;
 let defaultCameraState = null;
 
 // Manual camera vertical offset - adjust this to shift view up/down
@@ -647,6 +691,7 @@ function loadVoxelSlice(bounds) {
 
     // Create opacity transfer function - make background (ID 0) transparent
     const ofun = vtkPiecewiseFunction.newInstance();
+    voxelOpacityFunction = ofun; // Store reference for later updates
     ofun.addPoint(0, 0.0); // Background fully transparent
     for (let i = 1; i <= 116; i++) {
       ofun.addPoint(i, 1.0); // All tissues fully opaque
@@ -953,6 +998,12 @@ function drawColorbar(mode) {
       maxVal = maxAttenuationConstant;
       units = 'Np/m';
       break;
+    case 'nonlinearityParameter':
+      colormapFunc = rdbuColormap;
+      minVal = minNonlinearityParameter;
+      maxVal = maxNonlinearityParameter;
+      units = 'B/A';
+      break;
     case 'heatCapacity':
       colormapFunc = hotColormap;
       minVal = minHeatCapacity;
@@ -1059,6 +1110,9 @@ function drawColorbar(mode) {
       // Use scientific notation for conductivity and permittivity if values are small
       if ((mode === 'conductivity' || mode === 'permittivity') && Math.abs(value) < 1) {
         label.textContent = value.toExponential(1);
+      } else if (mode === 'nonlinearityParameter') {
+        // Show 2 decimal places for nonlinearity parameter (B/A)
+        label.textContent = value.toFixed(2);
       } else {
         label.textContent = Math.round(value);
       }
@@ -1130,16 +1184,29 @@ function setVisualizationMode(mode) {
   Object.keys(actors).forEach(filename => {
     const actor = actors[filename];
     const rgb = getTissueColor(filename);
-    actor.getProperty().setColor(rgb[0], rgb[1], rgb[2]);
+    const property = actor.getProperty();
+
+    // Handle transparency for tissues without data
+    if (rgb === null) {
+      property.setOpacity(0); // Fully transparent
+    } else {
+      property.setColor(rgb[0], rgb[1], rgb[2]);
+      property.setOpacity(0.2); // Reset to normal opacity
+    }
   });
 
-  // Update voxel slice colors
-  if (voxelColorTransferFunction) {
+  // Update voxel slice colors and opacity
+  if (voxelColorTransferFunction && voxelOpacityFunction) {
     voxelColorTransferFunction.removeAllPoints();
+    voxelOpacityFunction.removeAllPoints();
+
+    // Background always transparent
+    voxelColorTransferFunction.addRGBPoint(0, 0, 0, 0);
+    voxelOpacityFunction.addPoint(0, 0.0);
 
     if (mode !== 'default') {
-      // Build property-based color mapping for each tissue ID
-      for (let i = 0; i <= 116; i++) {
+      // Build property-based color mapping for each tissue ID (skip background at i=0)
+      for (let i = 1; i <= 116; i++) {
         const tissueName = tissueNamesByID[i];
         let rgb;
 
@@ -1153,6 +1220,15 @@ function setVisualizationMode(mode) {
               break;
             case 'attenuationConstant':
               rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
+              break;
+            case 'nonlinearityParameter':
+              // Check if tissue has data
+              const baValue = nonlinearityParameterByTissueName[tissueName];
+              if (baValue === null || baValue === undefined) {
+                rgb = null; // Will be handled below for transparency
+              } else {
+                rgb = getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap);
+              }
               break;
             case 'heatCapacity':
               rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
@@ -1179,13 +1255,22 @@ function setVisualizationMode(mode) {
           rgb = [0.5, 0.5, 0.5]; // Default gray for unknown tissues
         }
 
-        voxelColorTransferFunction.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
+        // Handle color and opacity
+        if (rgb === null) {
+          // Tissue has no data - make it transparent
+          voxelColorTransferFunction.addRGBPoint(i, 0, 0, 0);
+          voxelOpacityFunction.addPoint(i, 0.0); // Transparent
+        } else {
+          voxelColorTransferFunction.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
+          voxelOpacityFunction.addPoint(i, 1.0); // Opaque
+        }
       }
     } else {
-      // Restore default anatomical colors
-      for (let i = 0; i <= 116; i++) {
+      // Restore default anatomical colors (skip background at i=0)
+      for (let i = 1; i <= 116; i++) {
         const rgb = tissueColorsByID[i] || [0.5, 0.5, 0.5];
         voxelColorTransferFunction.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
+        voxelOpacityFunction.addPoint(i, 1.0); // All opaque in default mode
       }
     }
   }
