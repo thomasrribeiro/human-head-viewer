@@ -250,7 +250,7 @@
       display: none;
     }
     .dropdown-item {
-      padding: 6px 12px;
+      padding: 6px 24px;
       cursor: pointer;
       white-space: nowrap;
       font-size: 16px;
@@ -275,11 +275,12 @@
       font-size: 13px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      border-top: 1px solid #eee;
     }
     .dropdown-group-label:first-child {
-      border-top: none;
       padding-top: 6px;
+    }
+    .dropdown-item[data-value="default"] {
+      padding-left: 12px;
     }
     #colorbar-container {
       z-index: 1000;
@@ -380,6 +381,7 @@
             <div class="dropdown-group-label">Mechanical</div>
             <div class="dropdown-item" data-value="density">Density</div>
             <div class="dropdown-item" data-value="speedOfSound">Speed of Sound</div>
+            <div class="dropdown-item" data-value="attenuationConstant">Attenuation Constant</div>
             <div class="dropdown-group-label">Thermal</div>
             <div class="dropdown-item" data-value="heatCapacity">Heat Capacity</div>
             <div class="dropdown-item" data-value="heatGenerationRate">Heat Generation Rate</div>

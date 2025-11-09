@@ -20,6 +20,7 @@ import vtkOrientationMarkerWidget from '@kitware/vtk.js/Interaction/Widgets/Orie
 import vtkAnnotatedCubeActor from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor';
 import vtkAxesActor from '@kitware/vtk.js/Rendering/Core/AxesActor';
 import { calculateElectromagneticProperties, parseFrequencyInput, formatFrequency } from './cole-cole.js';
+import { calculateAttenuationConstant } from './acoustic.js';
 
 // ----------------------------------------------------------------------------
 // Standard rendering code setup
@@ -63,7 +64,9 @@ let lfConductivityByTissueName = {};
 let dielectricPropertiesData = {}; // Cole-Cole parameters for each tissue
 let conductivityByTissueName = {};
 let permittivityByTissueName = {};
-let currentFrequency = 100e6; // Default: 100 MHz
+let acousticAttenuationData = {}; // Attenuation parameters {alpha0, b} for each tissue
+let attenuationConstantByTissueName = {};
+let currentFrequency = 100e6; // Default: 100 MHz (for electromagnetic and acoustic)
 let visualizationMode = 'default';
 let minDensity = Infinity;
 let maxDensity = -Infinity;
@@ -83,6 +86,8 @@ let minConductivity = Infinity;
 let maxConductivity = -Infinity;
 let minPermittivity = Infinity;
 let maxPermittivity = -Infinity;
+let minAttenuationConstant = Infinity;
+let maxAttenuationConstant = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -213,6 +218,14 @@ async function loadDielectricProperties() {
   computeElectromagneticProperties(currentFrequency);
 }
 
+async function loadAcousticAttenuationData() {
+  const response = await fetch('/data/acoustic_attenuation.json');
+  acousticAttenuationData = await response.json();
+
+  // Compute attenuation at current frequency
+  computeAcousticAttenuation(currentFrequency);
+}
+
 // Compute conductivity and permittivity for all tissues at given frequency
 function computeElectromagneticProperties(frequency) {
   const conductivityValues = [];
@@ -238,6 +251,26 @@ function computeElectromagneticProperties(frequency) {
   maxConductivity = calculatePercentile(conductivityValues, 90);
   minPermittivity = calculatePercentile(permittivityValues, 10);
   maxPermittivity = calculatePercentile(permittivityValues, 90);
+}
+
+// Compute acoustic attenuation for all tissues at given frequency
+function computeAcousticAttenuation(frequency) {
+  const attenuationValues = [];
+
+  Object.keys(acousticAttenuationData).forEach(tissueName => {
+    const tissueData = acousticAttenuationData[tissueName];
+    const attenuation = calculateAttenuationConstant(tissueData.attenuation, frequency);
+
+    attenuationConstantByTissueName[tissueName] = attenuation;
+
+    if (attenuation > 0) {
+      attenuationValues.push(attenuation);
+    }
+  });
+
+  // Use 10th to 90th percentile bounds
+  minAttenuationConstant = calculatePercentile(attenuationValues, 10);
+  maxAttenuationConstant = calculatePercentile(attenuationValues, 90);
 }
 
 // Bone colormap: maps normalized value (0-1) to grayscale bone color
@@ -408,6 +441,8 @@ function getTissueColor(filename) {
       return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap);
     case 'speedOfSound':
       return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
+    case 'attenuationConstant':
+      return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
     case 'heatCapacity':
       return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
     case 'thermalConductivity':
@@ -446,6 +481,7 @@ async function loadAllData() {
   await loadTissueColors();
   await loadDensityData();
   await loadDielectricProperties();
+  await loadAcousticAttenuationData();
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -733,9 +769,9 @@ function loadVoxelSlice(bounds) {
         modeDropdown.classList.add('dropdown-hidden');
         setVisualizationMode(value);
 
-        // Show/hide frequency controls for electromagnetic properties
+        // Show/hide frequency controls for frequency-dependent properties
         const frequencyControls = document.getElementById('frequency-controls');
-        if (value === 'conductivity' || value === 'permittivity') {
+        if (value === 'conductivity' || value === 'permittivity' || value === 'attenuationConstant') {
           frequencyControls.classList.add('visible');
         } else {
           frequencyControls.classList.remove('visible');
@@ -796,22 +832,32 @@ function loadVoxelSlice(bounds) {
         const unitMultiplier = parseFloat(frequencyUnit.value);
         const frequency = numValue * unitMultiplier;
 
-        // Validate range: 10 Hz to 100 GHz
-        if (frequency < 10 || frequency > 100e9) {
-          alert('Please choose a frequency between 10 Hz and 100 GHz.');
-          return;
+        // Validate range based on current visualization mode
+        if (visualizationMode === 'attenuationConstant') {
+          // Acoustic attenuation: 10 Hz to 1 GHz
+          if (frequency < 10 || frequency > 1e9) {
+            alert('Please choose a frequency between 10 Hz and 1 GHz for acoustic attenuation.');
+            return;
+          }
+        } else {
+          // Electromagnetic properties: 10 Hz to 100 GHz
+          if (frequency < 10 || frequency > 100e9) {
+            alert('Please choose a frequency between 10 Hz and 100 GHz for electromagnetic properties.');
+            return;
+          }
         }
 
         // Update current frequency and recompute properties
         currentFrequency = frequency;
         computeElectromagneticProperties(frequency);
+        computeAcousticAttenuation(frequency);
 
-        // Update visualization if in conductivity or permittivity mode
-        if (visualizationMode === 'conductivity' || visualizationMode === 'permittivity') {
+        // Update visualization if in frequency-dependent mode
+        if (visualizationMode === 'conductivity' || visualizationMode === 'permittivity' || visualizationMode === 'attenuationConstant') {
           setVisualizationMode(visualizationMode);
         }
 
-        console.log(`Computed electromagnetic properties at ${formatFrequency(frequency)}`);
+        console.log(`Computed frequency-dependent properties at ${formatFrequency(frequency)}`);
       });
 
       // Allow Enter key to compute
@@ -901,6 +947,12 @@ function drawColorbar(mode) {
       maxVal = maxSpeedOfSound;
       units = 'm/s';
       break;
+    case 'attenuationConstant':
+      colormapFunc = rdbuColormap;
+      minVal = minAttenuationConstant;
+      maxVal = maxAttenuationConstant;
+      units = 'Np/m';
+      break;
     case 'heatCapacity':
       colormapFunc = hotColormap;
       minVal = minHeatCapacity;
@@ -935,7 +987,7 @@ function drawColorbar(mode) {
       colormapFunc = ylgnbuColormap;
       minVal = minPermittivity;
       maxVal = maxPermittivity;
-      units = 'ε_r';
+      units = '     ε_r';
       break;
     default:
       return;
@@ -1098,6 +1150,9 @@ function setVisualizationMode(mode) {
               break;
             case 'speedOfSound':
               rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
+              break;
+            case 'attenuationConstant':
+              rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
               break;
             case 'heatCapacity':
               rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
