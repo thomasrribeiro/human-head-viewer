@@ -102,6 +102,11 @@ let waterContentData = {}; // Water content for each tissue
 let waterContentByTissueName = {};
 let minWaterContent = Infinity;
 let maxWaterContent = -Infinity;
+let elementalCompositionData = {}; // Elemental composition for each tissue
+let elementalCompositionByTissueName = {};
+let currentElement = 'hydrogen'; // Default element
+let minElementalComposition = Infinity;
+let maxElementalComposition = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -292,6 +297,33 @@ async function loadWaterContentData() {
   if (waterValues.length > 0) {
     minWaterContent = calculatePercentile(waterValues, 10);
     maxWaterContent = calculatePercentile(waterValues, 90);
+  }
+}
+
+async function loadElementalCompositionData() {
+  const response = await fetch('/data/elemental_composition.json');
+  elementalCompositionData = await response.json();
+}
+
+// Compute elemental composition for current element
+function computeElementalComposition(element) {
+  const elementValues = [];
+
+  Object.keys(elementalCompositionData).forEach(tissueName => {
+    const tissueData = elementalCompositionData[tissueName];
+    const value = tissueData.composition[element];
+
+    elementalCompositionByTissueName[tissueName] = value;
+
+    if (value !== null && value > 0) {
+      elementValues.push(value);
+    }
+  });
+
+  // Use 10th to 90th percentile bounds
+  if (elementValues.length > 0) {
+    minElementalComposition = calculatePercentile(elementValues, 10);
+    maxElementalComposition = calculatePercentile(elementValues, 90);
   }
 }
 
@@ -504,6 +536,38 @@ function ylgnbuColormap(value) {
   }
 }
 
+// Mako colormap - purple to green
+function viridisColormap(value) {
+  const t = Math.max(0, Math.min(1, value));
+
+  // Mako color scheme (dark purple to bright green)
+  if (t < 0.125) {
+    const s = t / 0.125;
+    return [0.044 + s * (0.096 - 0.044), 0.017 + s * (0.052 - 0.017), 0.090 + s * (0.165 - 0.090)];
+  } else if (t < 0.25) {
+    const s = (t - 0.125) / 0.125;
+    return [0.096 + s * (0.161 - 0.096), 0.052 + s * (0.094 - 0.052), 0.165 + s * (0.251 - 0.165)];
+  } else if (t < 0.375) {
+    const s = (t - 0.25) / 0.125;
+    return [0.161 + s * (0.231 - 0.161), 0.094 + s * (0.141 - 0.094), 0.251 + s * (0.333 - 0.251)];
+  } else if (t < 0.5) {
+    const s = (t - 0.375) / 0.125;
+    return [0.231 + s * (0.298 - 0.231), 0.141 + s * (0.192 - 0.141), 0.333 + s * (0.404 - 0.333)];
+  } else if (t < 0.625) {
+    const s = (t - 0.5) / 0.125;
+    return [0.298 + s * (0.259 - 0.298), 0.192 + s * (0.298 - 0.192), 0.404 + s * (0.427 - 0.404)];
+  } else if (t < 0.75) {
+    const s = (t - 0.625) / 0.125;
+    return [0.259 + s * (0.180 - 0.259), 0.298 + s * (0.443 - 0.298), 0.427 + s * (0.427 - 0.427)];
+  } else if (t < 0.875) {
+    const s = (t - 0.75) / 0.125;
+    return [0.180 + s * (0.161 - 0.180), 0.443 + s * (0.604 - 0.443), 0.427 + s * (0.412 - 0.427)];
+  } else {
+    const s = (t - 0.875) / 0.125;
+    return [0.161 + s * (0.267 - 0.161), 0.604 + s * (0.765 - 0.604), 0.412 + s * (0.404 - 0.412)];
+  }
+}
+
 function getDensityColor(tissueName) {
   const density = densityByTissueName[tissueName];
   if (!density) {
@@ -567,7 +631,14 @@ function getTissueColor(filename) {
       if (waterValue === null || waterValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, ylgnbuColormap);
+      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap);
+    case 'elementalComposition':
+      // Return null for tissues without data (will make them transparent)
+      const elementValue = elementalCompositionByTissueName[tissueName];
+      if (elementValue === null || elementValue === undefined) {
+        return null; // Transparent
+      }
+      return getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -598,6 +669,10 @@ async function loadAllData() {
   await loadNonlinearityParameterData();
   await loadRelaxationTimeData();
   await loadWaterContentData();
+  await loadElementalCompositionData();
+
+  // Compute default element (hydrogen)
+  computeElementalComposition(currentElement);
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -896,18 +971,29 @@ function loadVoxelSlice(bounds) {
         // Show/hide frequency controls for frequency-dependent properties
         const frequencyControls = document.getElementById('frequency-controls');
         const relaxationTimeControls = document.getElementById('relaxation-time-controls');
+        const elementControls = document.getElementById('element-controls');
         if (value === 'conductivity' || value === 'permittivity' || value === 'attenuationConstant') {
           frequencyControls.classList.add('visible');
           relaxationTimeControls.classList.remove('visible');
+          elementControls.classList.remove('visible');
         } else if (value === 'relaxationTime') {
           frequencyControls.classList.remove('visible');
           relaxationTimeControls.classList.add('visible');
+          elementControls.classList.remove('visible');
           // Compute with default values (1.5T, T1)
           computeRelaxationTimes(currentFieldStrength, currentRelaxationParameter);
           setVisualizationMode('relaxationTime');
+        } else if (value === 'elementalComposition') {
+          frequencyControls.classList.remove('visible');
+          relaxationTimeControls.classList.remove('visible');
+          elementControls.classList.add('visible');
+          // Compute with default element (hydrogen)
+          computeElementalComposition(currentElement);
+          setVisualizationMode('elementalComposition');
         } else {
           frequencyControls.classList.remove('visible');
           relaxationTimeControls.classList.remove('visible');
+          elementControls.classList.remove('visible');
         }
       }
     });
@@ -1020,6 +1106,26 @@ function loadVoxelSlice(bounds) {
         }
 
         console.log(`Computed relaxation times for ${currentFieldStrength} ${currentRelaxationParameter}`);
+      });
+    }
+
+    // Set up element composition controls
+    const displayElementBtn = document.getElementById('display-element-btn');
+    const elementSelect = document.getElementById('element-select');
+
+    if (displayElementBtn && elementSelect) {
+      displayElementBtn.addEventListener('click', () => {
+        currentElement = elementSelect.value;
+
+        // Compute elemental composition for selected element
+        computeElementalComposition(currentElement);
+
+        // Update visualization
+        if (visualizationMode === 'elementalComposition') {
+          setVisualizationMode('elementalComposition');
+        }
+
+        console.log(`Computed elemental composition for ${currentElement}`);
       });
     }
   });
@@ -1148,7 +1254,7 @@ function drawColorbar(mode) {
       colormapFunc = ylgnbuColormap;
       minVal = minPermittivity;
       maxVal = maxPermittivity;
-      units = '     ε_r';
+      units = 'ε_r';
       break;
     case 'relaxationTime':
       colormapFunc = ylgnbuColormap;
@@ -1157,10 +1263,17 @@ function drawColorbar(mode) {
       units = 'ms';
       break;
     case 'waterContent':
-      colormapFunc = ylgnbuColormap;
+      colormapFunc = viridisColormap;
       minVal = minWaterContent;
       maxVal = maxWaterContent;
-      units = '     %';
+      units = '%';
+      break;
+    case 'elementalComposition':
+      colormapFunc = viridisColormap;
+      // Convert to percentage (multiply by 100)
+      minVal = minElementalComposition * 100;
+      maxVal = maxElementalComposition * 100;
+      units = '%';
       break;
     default:
       return;
@@ -1194,14 +1307,14 @@ function drawColorbar(mode) {
     }
   }
 
-  // Update title with 5 non-breaking spaces prefix (hide for default mode)
+  // Update title (centered via CSS)
   const titleElement = document.querySelector('.colorbar-title');
   if (titleElement) {
     if (units) {
-      titleElement.innerHTML = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + units;
+      titleElement.textContent = units;
       titleElement.style.visibility = 'visible';
     } else {
-      titleElement.innerHTML = '';
+      titleElement.textContent = '';
       titleElement.style.visibility = 'hidden';
     }
   }
@@ -1232,6 +1345,9 @@ function drawColorbar(mode) {
       // Use scientific notation for conductivity and permittivity if values are small
       if ((mode === 'conductivity' || mode === 'permittivity') && Math.abs(value) < 1) {
         label.textContent = value.toExponential(1);
+      } else if (mode === 'elementalComposition') {
+        // Use exponential notation for elemental composition
+        label.textContent = value.toExponential(2);
       } else if (mode === 'nonlinearityParameter') {
         // Show 2 decimal places for nonlinearity parameter (B/A)
         label.textContent = value.toFixed(2);
@@ -1385,7 +1501,16 @@ function setVisualizationMode(mode) {
               if (waterValue === null || waterValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, ylgnbuColormap);
+                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap);
+              }
+              break;
+            case 'elementalComposition':
+              // Check if tissue has data
+              const elementValue = elementalCompositionByTissueName[tissueName];
+              if (elementValue === null || elementValue === undefined) {
+                rgb = null; // Will be handled below for transparency
+              } else {
+                rgb = getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap);
               }
               break;
             default:

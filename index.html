@@ -101,6 +101,37 @@
     #display-relaxation-btn:hover {
       background: #0052a3;
     }
+    #element-controls {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      margin-left: 30px;
+    }
+    #element-controls.visible {
+      display: flex;
+    }
+    #element-select {
+      padding: 4px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+    }
+    #display-element-btn {
+      padding: 4px 12px;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    #display-element-btn:hover {
+      background: #0052a3;
+    }
     #controls-and-render {
       position: relative;
       width: 100%;
@@ -387,12 +418,15 @@
     .colorbar-title {
       font-family: Arial, sans-serif;
       font-size: 12px;
-      font-weight: bold;
+      font-weight: normal;
       color: #333;
-      text-align: left;
-      margin-bottom: 8px;
-      margin-left: 15px;
-      align-self: flex-start;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      margin-right: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 420px;
     }
   </style>
 </head>
@@ -404,11 +438,13 @@
   <div id="tissue-tooltip"></div>
   <div id="controls-and-render">
     <div id="colorbar-container">
-      <div class="colorbar-title">kg/m³</div>
-      <div id="colorbar-content">
-        <canvas id="colorbar" width="25" height="420"></canvas>
-        <div id="colorbar-tick-marks"></div>
-        <div id="colorbar-ticks"></div>
+      <div style="display: flex; align-items: center;">
+        <div class="colorbar-title">kg/m³</div>
+        <div id="colorbar-content">
+          <canvas id="colorbar" width="25" height="420"></canvas>
+          <div id="colorbar-tick-marks"></div>
+          <div id="colorbar-ticks"></div>
+        </div>
       </div>
     </div>
     <div id="viz-and-render">
@@ -436,6 +472,7 @@
             <div class="dropdown-item" data-value="thermalConductivity">Thermal Conductivity</div>
             <div class="dropdown-group-label">Chemical</div>
             <div class="dropdown-item" data-value="waterContent">Water Content</div>
+            <div class="dropdown-item" data-value="elementalComposition">Elemental Composition</div>
           </div>
         </div>
         <button id="reset-camera-btn" title="Reset camera" style="opacity: 0;">
@@ -462,6 +499,28 @@
             <option value="T2">T2</option>
           </select>
           <button id="display-relaxation-btn">Display</button>
+        </div>
+        <div id="element-controls">
+          <select id="element-select">
+            <option value="hydrogen" selected>Hydrogen</option>
+            <option value="carbon">Carbon</option>
+            <option value="nitrogen">Nitrogen</option>
+            <option value="oxygen">Oxygen</option>
+            <option value="sodium">Sodium</option>
+            <option value="magnesium">Magnesium</option>
+            <option value="silicon">Silicon</option>
+            <option value="phosphor">Phosphor</option>
+            <option value="sulfur">Sulfur</option>
+            <option value="chlorine">Chlorine</option>
+            <option value="argon">Argon</option>
+            <option value="potassium">Potassium</option>
+            <option value="calcium">Calcium</option>
+            <option value="scandium">Scandium</option>
+            <option value="iron">Iron</option>
+            <option value="zinc">Zinc</option>
+            <option value="iodine">Iodine</option>
+          </select>
+          <button id="display-element-btn">Display</button>
         </div>
       </div>
       <div id="render-wrapper"></div>
