@@ -68,6 +68,10 @@ let acousticAttenuationData = {}; // Attenuation parameters {alpha0, b} for each
 let attenuationConstantByTissueName = {};
 let nonlinearityParameterData = {}; // B/A parameter for each tissue
 let nonlinearityParameterByTissueName = {};
+let relaxationTimeData = {}; // T1/T2 relaxation times for each tissue at different field strengths
+let relaxationTimeByTissueName = {};
+let currentFieldStrength = '1.5T'; // Default: 1.5T
+let currentRelaxationParameter = 'T1'; // Default: T1
 let currentFrequency = 100e6; // Default: 100 MHz (for electromagnetic and acoustic)
 let visualizationMode = 'default';
 let minDensity = Infinity;
@@ -92,6 +96,8 @@ let minAttenuationConstant = Infinity;
 let maxAttenuationConstant = -Infinity;
 let minNonlinearityParameter = Infinity;
 let maxNonlinearityParameter = -Infinity;
+let minRelaxationTime = Infinity;
+let maxRelaxationTime = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
@@ -252,6 +258,34 @@ async function loadNonlinearityParameterData() {
   if (baValues.length > 0) {
     minNonlinearityParameter = Math.min(...baValues);
     maxNonlinearityParameter = Math.max(...baValues);
+  }
+}
+
+async function loadRelaxationTimeData() {
+  const response = await fetch('/data/relaxation_times.json');
+  relaxationTimeData = await response.json();
+}
+
+// Compute relaxation times for current field strength and parameter
+function computeRelaxationTimes(fieldStrength, parameter) {
+  const relaxationValues = [];
+  const key = `${parameter.toLowerCase()}_${fieldStrength.replace('.', '')}`;  // e.g., "t1_15T"
+
+  Object.keys(relaxationTimeData).forEach(tissueName => {
+    const tissueData = relaxationTimeData[tissueName];
+    const value = tissueData[key];
+
+    relaxationTimeByTissueName[tissueName] = value;
+
+    if (value !== null && value > 0) {
+      relaxationValues.push(value);
+    }
+  });
+
+  // Use 10th to 90th percentile bounds
+  if (relaxationValues.length > 0) {
+    minRelaxationTime = calculatePercentile(relaxationValues, 10);
+    maxRelaxationTime = calculatePercentile(relaxationValues, 90);
   }
 }
 
@@ -491,6 +525,13 @@ function getTissueColor(filename) {
       return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap);
     case 'permittivity':
       return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
+    case 'relaxationTime':
+      // Return null for tissues without data (will make them transparent)
+      const relaxationValue = relaxationTimeByTissueName[tissueName];
+      if (relaxationValue === null || relaxationValue === undefined) {
+        return null; // Transparent
+      }
+      return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -519,6 +560,7 @@ async function loadAllData() {
   await loadDielectricProperties();
   await loadAcousticAttenuationData();
   await loadNonlinearityParameterData();
+  await loadRelaxationTimeData();
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -816,10 +858,19 @@ function loadVoxelSlice(bounds) {
 
         // Show/hide frequency controls for frequency-dependent properties
         const frequencyControls = document.getElementById('frequency-controls');
+        const relaxationTimeControls = document.getElementById('relaxation-time-controls');
         if (value === 'conductivity' || value === 'permittivity' || value === 'attenuationConstant') {
           frequencyControls.classList.add('visible');
+          relaxationTimeControls.classList.remove('visible');
+        } else if (value === 'relaxationTime') {
+          frequencyControls.classList.remove('visible');
+          relaxationTimeControls.classList.add('visible');
+          // Compute with default values (1.5T, T1)
+          computeRelaxationTimes(currentFieldStrength, currentRelaxationParameter);
+          setVisualizationMode('relaxationTime');
         } else {
           frequencyControls.classList.remove('visible');
+          relaxationTimeControls.classList.remove('visible');
         }
       }
     });
@@ -910,6 +961,28 @@ function loadVoxelSlice(bounds) {
         if (event.key === 'Enter') {
           computeFrequencyBtn.click();
         }
+      });
+    }
+
+    // Set up relaxation time controls
+    const displayRelaxationBtn = document.getElementById('display-relaxation-btn');
+    const fieldStrengthSelect = document.getElementById('field-strength-select');
+    const relaxationParameterSelect = document.getElementById('relaxation-parameter-select');
+
+    if (displayRelaxationBtn && fieldStrengthSelect && relaxationParameterSelect) {
+      displayRelaxationBtn.addEventListener('click', () => {
+        currentFieldStrength = fieldStrengthSelect.value;
+        currentRelaxationParameter = relaxationParameterSelect.value;
+
+        // Compute relaxation times with selected parameters
+        computeRelaxationTimes(currentFieldStrength, currentRelaxationParameter);
+
+        // Update visualization
+        if (visualizationMode === 'relaxationTime') {
+          setVisualizationMode('relaxationTime');
+        }
+
+        console.log(`Computed relaxation times for ${currentFieldStrength} ${currentRelaxationParameter}`);
       });
     }
   });
@@ -1039,6 +1112,12 @@ function drawColorbar(mode) {
       minVal = minPermittivity;
       maxVal = maxPermittivity;
       units = '     ε_r';
+      break;
+    case 'relaxationTime':
+      colormapFunc = ylgnbuColormap;
+      minVal = minRelaxationTime;
+      maxVal = maxRelaxationTime;
+      units = 'ms';
       break;
     default:
       return;
@@ -1247,6 +1326,15 @@ function setVisualizationMode(mode) {
               break;
             case 'permittivity':
               rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
+              break;
+            case 'relaxationTime':
+              // Check if tissue has data
+              const relaxationValue = relaxationTimeByTissueName[tissueName];
+              if (relaxationValue === null || relaxationValue === undefined) {
+                rgb = null; // Will be handled below for transparency
+              } else {
+                rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
+              }
               break;
             default:
               rgb = [0.5, 0.5, 0.5];
