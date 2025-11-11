@@ -724,12 +724,23 @@ async function loadAllData() {
       }
     }).catch((error) => {
       console.error(`Failed to load ${filename}:`, error);
+
+      loadedCount++;
+
       // Update status to error
       const statusIndicator = document.getElementById('status-indicator');
       const statusText = document.getElementById('status-text');
       if (statusIndicator && statusText) {
         statusIndicator.className = 'error';
         statusText.textContent = 'Failed to load';
+      }
+
+      // Continue loading if all files are processed (even with errors)
+      if (loadedCount === stlFiles.length) {
+        const stlBounds = renderer.computeVisiblePropBounds();
+        if (stlBounds && stlBounds[0] !== Infinity) {
+          loadVoxelSlice(stlBounds);
+        }
       }
     });
   });
