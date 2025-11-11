@@ -36,7 +36,7 @@ const orientationWidget = vtkOrientationMarkerWidget.newInstance({
   actor: axes,
   interactor: renderWindow.getInteractor(),
 });
-orientationWidget.setEnabled(true);
+orientationWidget.setEnabled(false); // Start disabled, enable after model loads
 orientationWidget.setViewportCorner(
   vtkOrientationMarkerWidget.Corners.TOP_RIGHT
 );
@@ -990,6 +990,9 @@ function loadVoxelSlice(bounds) {
       statusIndicator.className = 'loaded';
       statusText.textContent = 'Ready';
     }
+
+    // Enable orientation widget after model is loaded
+    orientationWidget.setEnabled(true);
 
     // Fade in UI elements after volume is loaded
     const vizModeContainer = document.getElementById('viz-mode-container');
