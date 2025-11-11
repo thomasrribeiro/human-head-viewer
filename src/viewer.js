@@ -682,10 +682,20 @@ clippingPlane.setOrigin(0, 1000, 0);
 const mappers = [];
 const actors = {}; // Store actors by filename for updates
 
+function updateLoadingStatus(message) {
+  const statusText = document.getElementById('status-text');
+  if (statusText) {
+    statusText.textContent = message;
+  }
+}
+
 async function loadAllData() {
   try {
     // Load tissue colors, density, and dielectric data
+    updateLoadingStatus('Loading model...');
     await loadTissueColors();
+
+    updateLoadingStatus('Loading properties...');
     await loadDensityData();
     await loadDielectricProperties();
     await loadAcousticAttenuationData();
@@ -708,6 +718,8 @@ async function loadAllData() {
     }
     return; // Stop execution if critical data fails to load
   }
+
+  updateLoadingStatus('Loading model...');
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
@@ -809,6 +821,7 @@ const CAMERA_VERTICAL_OFFSET = -20;
 function loadVoxelSlice(bounds) {
   stlBounds = bounds;
 
+  updateLoadingStatus('Loading model...');
   const voxelReader = vtkXMLImageDataReader.newInstance();
 
   voxelReader.setUrl('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.vti').then(() => {
@@ -975,7 +988,7 @@ function loadVoxelSlice(bounds) {
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
       statusIndicator.className = 'loaded';
-      statusText.textContent = 'Model loaded!';
+      statusText.textContent = 'Ready';
     }
 
     // Fade in UI elements after volume is loaded
