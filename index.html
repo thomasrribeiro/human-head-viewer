@@ -14,19 +14,27 @@
       align-items: center;
       height: 100vh;
       min-height: 0;
+      padding-top: 40px;
+    }
+    #top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      z-index: 3000;
     }
     .back-link {
-      position: fixed;
-      top: 10px;
-      right: 10px;
       color: #D4AF37;
       text-decoration: none;
       font-family: 'IBM Plex Mono', monospace;
       font-size: 14px;
-      background: rgba(255, 255, 255, 0.9);
       padding: 6px 12px;
       border-radius: 3px;
-      z-index: 2000;
       transition: opacity 0.2s ease;
     }
     .back-link:hover {
@@ -194,9 +202,6 @@
       height: 24px;
     }
     #loading-status {
-      position: fixed;
-      top: 10px;
-      left: 10px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -204,10 +209,8 @@
       font-size: 13px;
       color: #666;
       font-style: italic;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 6px 12px;
-      border-radius: 3px;
-      z-index: 2000;
+      margin-left: auto;
+      margin-right: 10px;
     }
     #tissue-tooltip {
       position: fixed;
@@ -448,10 +451,12 @@
   </style>
 </head>
 <body>
-  <a href="https://thomasrribeiro.github.io/" class="back-link">&lt; back home</a>
-  <div id="loading-status">
-    <div id="status-indicator" class="loading"></div>
-    <span id="status-text">Loading...</span>
+  <div id="top-bar">
+    <a href="https://thomasrribeiro.github.io/" class="back-link">&lt; back home</a>
+    <div id="loading-status">
+      <div id="status-indicator" class="loading"></div>
+      <span id="status-text">Loading...</span>
+    </div>
   </div>
   <div id="tissue-tooltip"></div>
   <div id="controls-and-render">
