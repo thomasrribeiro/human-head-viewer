@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VTK Simple Cone</title>
+  <title>Human Head Viewer</title>
   <style>
     body {
       margin: 0;
@@ -14,6 +14,23 @@
       align-items: center;
       height: 100vh;
       min-height: 0;
+    }
+    .back-link {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      color: #D4AF37;
+      text-decoration: none;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 6px 12px;
+      border-radius: 3px;
+      z-index: 2000;
+      transition: opacity 0.2s ease;
+    }
+    .back-link:hover {
+      opacity: 0.7;
     }
     #viz-mode-container {
       background: rgba(255, 255, 255, 0.9);
@@ -431,6 +448,7 @@
   </style>
 </head>
 <body>
+  <a href="https://thomasrribeiro.github.io/" class="back-link">&lt; back home</a>
   <div id="loading-status">
     <div id="status-indicator" class="loading"></div>
     <span id="status-text">Loading...</span>
