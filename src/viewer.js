@@ -1,5 +1,3 @@
-import '@kitware/vtk.js/favicon';
-
 // Load the rendering pieces we want to use
 import '@kitware/vtk.js/Rendering/Profiles/Geometry';
 import '@kitware/vtk.js/Rendering/Profiles/Volume';
@@ -110,6 +108,9 @@ let maxElementalComposition = -Infinity;
 
 async function loadTissueColors() {
   const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
+  if (!response.ok) {
+    throw new Error(`Failed to load MIDA_v1.txt: ${response.status} ${response.statusText}`);
+  }
   const text = await response.text();
   const lines = text.trim().split('\n');
 
@@ -148,6 +149,9 @@ function calculatePercentile(values, percentile) {
 
 async function loadDensityData() {
   const response = await fetch('/data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
+  if (!response.ok) {
+    throw new Error(`Failed to load thermal/dielectric database: ${response.status} ${response.statusText}`);
+  }
   const text = await response.text();
   const lines = text.trim().split('\n');
 
@@ -231,6 +235,9 @@ async function loadDensityData() {
 // Load dielectric properties and compute electromagnetic properties at current frequency
 async function loadDielectricProperties() {
   const response = await fetch('/data/dielectric_properties.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load dielectric_properties.json: ${response.status} ${response.statusText}`);
+  }
   dielectricPropertiesData = await response.json();
 
   // Compute properties at current frequency
@@ -239,6 +246,9 @@ async function loadDielectricProperties() {
 
 async function loadAcousticAttenuationData() {
   const response = await fetch('/data/acoustic_attenuation.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load acoustic_attenuation.json: ${response.status} ${response.statusText}`);
+  }
   acousticAttenuationData = await response.json();
 
   // Compute attenuation at current frequency
@@ -247,6 +257,9 @@ async function loadAcousticAttenuationData() {
 
 async function loadNonlinearityParameterData() {
   const response = await fetch('/data/nonlinearity_parameter.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load nonlinearity_parameter.json: ${response.status} ${response.statusText}`);
+  }
   nonlinearityParameterData = await response.json();
 
   // Process nonlinearity parameter for all tissues
@@ -272,11 +285,17 @@ async function loadNonlinearityParameterData() {
 
 async function loadRelaxationTimeData() {
   const response = await fetch('/data/relaxation_times.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load relaxation_times.json: ${response.status} ${response.statusText}`);
+  }
   relaxationTimeData = await response.json();
 }
 
 async function loadWaterContentData() {
   const response = await fetch('/data/water_content.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load water_content.json: ${response.status} ${response.statusText}`);
+  }
   waterContentData = await response.json();
 
   // Process water content for all tissues
@@ -302,6 +321,9 @@ async function loadWaterContentData() {
 
 async function loadElementalCompositionData() {
   const response = await fetch('/data/elemental_composition.json');
+  if (!response.ok) {
+    throw new Error(`Failed to load elemental_composition.json: ${response.status} ${response.statusText}`);
+  }
   elementalCompositionData = await response.json();
 }
 
@@ -661,18 +683,31 @@ const mappers = [];
 const actors = {}; // Store actors by filename for updates
 
 async function loadAllData() {
-  // Load tissue colors, density, and dielectric data
-  await loadTissueColors();
-  await loadDensityData();
-  await loadDielectricProperties();
-  await loadAcousticAttenuationData();
-  await loadNonlinearityParameterData();
-  await loadRelaxationTimeData();
-  await loadWaterContentData();
-  await loadElementalCompositionData();
+  try {
+    // Load tissue colors, density, and dielectric data
+    await loadTissueColors();
+    await loadDensityData();
+    await loadDielectricProperties();
+    await loadAcousticAttenuationData();
+    await loadNonlinearityParameterData();
+    await loadRelaxationTimeData();
+    await loadWaterContentData();
+    await loadElementalCompositionData();
 
-  // Compute default element (hydrogen)
-  computeElementalComposition(currentElement);
+    // Compute default element (hydrogen)
+    computeElementalComposition(currentElement);
+  } catch (error) {
+    console.error('Error loading data files:', error);
+
+    // Update status to error
+    const statusIndicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    if (statusIndicator && statusText) {
+      statusIndicator.className = 'error';
+      statusText.textContent = 'Failed to load data';
+    }
+    return; // Stop execution if critical data fails to load
+  }
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {

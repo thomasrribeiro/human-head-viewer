@@ -1,5 +1,3 @@
-import '@kitware/vtk.js/favicon';
-
 // Load the rendering pieces we want to use
 import '@kitware/vtk.js/Rendering/Profiles/Geometry';
 import '@kitware/vtk.js/Rendering/Profiles/Volume';
