@@ -270,7 +270,7 @@ const stlFiles = [
 // Load all STL files and render
 // ----------------------------------------------------------------------------
 
-const basePath = '/data/MIDA_v1.0/MIDA_v1_surfaces/';
+const basePath = '/data/MIDA_v1_surfaces/';
 let loadedCount = 0;
 
 // Create clipping plane (transverse/axial - horizontal slices)

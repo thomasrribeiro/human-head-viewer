@@ -36,7 +36,7 @@ let tissueNamesByID = {};
 let stlFiles = [];
 
 async function loadTissueColors() {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt`);
+  const response = await fetch(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.txt`);
   const text = await response.text();
   const lines = text.trim().split('\n');
 
@@ -68,7 +68,7 @@ function getTissueColor(filename) {
 // Load all STL files and render
 // ----------------------------------------------------------------------------
 
-const basePath = `${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_surfaces/`;
+const basePath = `${import.meta.env.BASE_URL}data/MIDA_v1_surfaces/`;
 let loadedCount = 0;
 
 // Create clipping plane (transverse/axial - horizontal slices)
@@ -141,7 +141,7 @@ function loadVoxelSlice(bounds) {
 
   const voxelReader = vtkXMLImageDataReader.newInstance();
 
-  voxelReader.setUrl(`${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
+  voxelReader.setUrl(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
     const rawVoxelData = voxelReader.getOutputData();
 
     if (!rawVoxelData) {
