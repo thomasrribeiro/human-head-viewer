@@ -60,14 +60,19 @@ async function loadTissueColors() {
     tissueColorsByName[name] = color;
     tissueNamesByID[id] = name;
 
-    const stlFilename = name.replace('/', '_') + '.stl';
+    // Skip "Background" as it has no corresponding STL file
+    if (name === 'Background') {
+      return;
+    }
+
+    const stlFilename = name.replace(/\//g, '_') + '.stl';
     stlFiles.push(stlFilename);
   });
 
 }
 
 function getTissueColor(filename) {
-  const tissueName = filename.replace('.stl', '').replace('_', '/');
+  const tissueName = filename.replace('.stl', '').replace(/_/g, '/');
   return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
 }
 
