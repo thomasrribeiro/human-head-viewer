@@ -92,16 +92,20 @@ let visualizationMode = 'default';
 // Min/max values for colormap scaling
 let minDensity = Infinity;
 let maxDensity = -Infinity;
+let medianDensity = 0;
 let minHeatCapacity = Infinity;
 let maxHeatCapacity = -Infinity;
+let medianHeatCapacity = 0;
 let minThermalConductivity = Infinity;
 let maxThermalConductivity = -Infinity;
+let medianThermalConductivity = 0;
 let minHeatTransferRate = Infinity;
 let maxHeatTransferRate = -Infinity;
 let minHeatGenerationRate = Infinity;
 let maxHeatGenerationRate = -Infinity;
 let minSpeedOfSound = Infinity;
 let maxSpeedOfSound = -Infinity;
+let medianSpeedOfSound = 0;
 let minLFConductivity = Infinity;
 let maxLFConductivity = -Infinity;
 let minConductivity = Infinity;
@@ -156,6 +160,17 @@ function calculatePercentile(values, percentile) {
   const upper = Math.ceil(index);
   const weight = index - lower;
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}
+
+// Helper function to calculate IQR-based range for outlier removal
+function calculateIQRRange(values) {
+  if (values.length === 0) return { min: 0, max: 0 };
+  const q1 = calculatePercentile(values, 25);
+  const q3 = calculatePercentile(values, 75);
+  const iqr = q3 - q1;
+  const lowerBound = Math.max(Math.min(...values), q1 - 2 * iqr);
+  const upperBound = Math.min(Math.max(...values), q3 + 2 * iqr);
+  return { min: lowerBound, max: upperBound };
 }
 
 // Load unified tissue properties JSON file
@@ -232,19 +247,27 @@ async function loadTissueProperties() {
     }
   });
 
-  // Calculate percentile bounds for all properties
+  // Calculate bounds for all properties
   minDensity = Math.min(...densityValues);
   maxDensity = Math.max(...densityValues);
+  medianDensity = calculatePercentile(densityValues, 50);
+
   minHeatCapacity = Math.min(...heatCapacityValues);
   maxHeatCapacity = Math.max(...heatCapacityValues);
+  medianHeatCapacity = calculatePercentile(heatCapacityValues, 50);
+
   minThermalConductivity = Math.min(...thermalConductivityValues);
   maxThermalConductivity = Math.max(...thermalConductivityValues);
+  medianThermalConductivity = calculatePercentile(thermalConductivityValues, 50);
+
+  minSpeedOfSound = Math.min(...speedOfSoundValues);
+  maxSpeedOfSound = Math.max(...speedOfSoundValues);
+  medianSpeedOfSound = calculatePercentile(speedOfSoundValues, 50);
+
   minHeatTransferRate = Math.min(...heatTransferRateValues);
   maxHeatTransferRate = Math.max(...heatTransferRateValues);
   minHeatGenerationRate = Math.min(...heatGenerationRateValues);
   maxHeatGenerationRate = Math.max(...heatGenerationRateValues);
-  minSpeedOfSound = Math.min(...speedOfSoundValues);
-  maxSpeedOfSound = Math.max(...speedOfSoundValues);
   minLFConductivity = Math.min(...lfConductivityValues);
   maxLFConductivity = Math.max(...lfConductivityValues);
 
@@ -562,7 +585,7 @@ function getDensityColor(tissueName) {
   return [clampedNormalized, clampedNormalized, clampedNormalized];
 }
 
-function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc, useLog = false) {
+function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc, useLog = false, medianVal = null) {
   const value = propertyMap[tissueName];
   if (value === null || value === undefined) {
     return [0.5, 0.5, 0.5];
@@ -585,6 +608,23 @@ function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc,
     normalized = (value - minVal) / (maxVal - minVal);
   }
 
+  // Apply sigmoid-based median-centered nonlinear scaling if median is provided
+  if (medianVal !== null && medianVal > 0) {
+    // Map value to range centered on median
+    // Use tanh-based sigmoid for smooth compression around median
+    const medianNormalized = useLog ?
+      (Math.log10(medianVal) - Math.log10(minVal)) / (Math.log10(maxVal) - Math.log10(minVal)) :
+      (medianVal - minVal) / (maxVal - minVal);
+
+    // Shift so median is at 0, scale by steepness factor (3 = moderate compression)
+    const steepness = 25;
+    const shifted = (normalized - medianNormalized) * steepness;
+
+    // Apply tanh sigmoid and map back to [0, 1]
+    const sigmoid = Math.tanh(shifted);
+    normalized = 0.5 + sigmoid * 0.5;
+  }
+
   const clampedNormalized = Math.max(0, Math.min(1, normalized));
   return colormapFunc(clampedNormalized);
 }
@@ -595,9 +635,9 @@ function getTissueColor(filename) {
 
   switch (visualizationMode) {
     case 'density':
-      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true);
+      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true, medianDensity);
     case 'speedOfSound':
-      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true);
+      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true, medianSpeedOfSound);
     case 'attenuationConstant':
       return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true);
     case 'nonlinearityParameter':
@@ -608,9 +648,9 @@ function getTissueColor(filename) {
       }
       return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true);
     case 'heatCapacity':
-      return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true);
+      return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true, medianHeatCapacity);
     case 'thermalConductivity':
-      return getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true);
+      return getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true, medianThermalConductivity);
     case 'heatTransferRate':
       return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true);
     case 'heatGenerationRate':
@@ -1694,10 +1734,10 @@ function setVisualizationMode(mode) {
         if (tissueName) {
           switch (mode) {
             case 'density':
-              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true);
+              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true, medianDensity);
               break;
             case 'speedOfSound':
-              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true);
+              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true, medianSpeedOfSound);
               break;
             case 'attenuationConstant':
               rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true);
@@ -1712,10 +1752,10 @@ function setVisualizationMode(mode) {
               }
               break;
             case 'heatCapacity':
-              rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true);
+              rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true, medianHeatCapacity);
               break;
             case 'thermalConductivity':
-              rgb = getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true);
+              rgb = getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true, medianThermalConductivity);
               break;
             case 'heatTransferRate':
               rgb = getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true);
