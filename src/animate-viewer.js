@@ -49,11 +49,21 @@ async function loadTissueColors() {
 
   lines.forEach(line => {
     const parts = line.split('\t');
+
+    // Skip invalid lines (metadata at end of file)
+    if (parts.length < 4) return;
+
     const id = parseInt(parts[0]);
+    if (isNaN(id)) return;
+
     const r = parseFloat(parts[1]);
     const g = parseFloat(parts[2]);
     const b = parseFloat(parts[3]);
+
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return;
+
     const name = parts.slice(4).join('\t').trim();
+    if (!name) return;
 
     const color = [r, g, b];
     tissueColorsByID[id] = color;

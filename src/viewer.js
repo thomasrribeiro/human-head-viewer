@@ -140,11 +140,25 @@ async function loadTissueColors() {
 
   lines.forEach(line => {
     const parts = line.split('\t');
+
+    // Skip lines that don't have at least 4 tab-separated values (id, r, g, b)
+    // or where the first value is not a valid integer (e.g., metadata lines)
+    if (parts.length < 4) return;
+
     const id = parseInt(parts[0]);
+    if (isNaN(id)) return; // Skip if ID is not a number
+
     const r = parseFloat(parts[1]);
     const g = parseFloat(parts[2]);
     const b = parseFloat(parts[3]);
+
+    // Skip if RGB values are not valid numbers (metadata lines)
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return;
+
     const name = parts.slice(4).join('\t').trim();
+
+    // Skip entries with no name
+    if (!name) return;
 
     const color = [r, g, b];
     tissueColorsByID[id] = color;
