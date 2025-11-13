@@ -829,8 +829,70 @@ async function loadAllData() {
 
 // Removed adjustDropdownWidth as we now use custom dropdown
 
-// Add window resize listener to debug position
-window.addEventListener('resize', debugRenderPosition);
+// Function to scale colorbar canvas based on render height
+function scaleColorbar() {
+  const renderWrapper = document.getElementById('render-wrapper');
+  const colorbarCanvas = document.getElementById('colorbar');
+  const colorbarTickMarks = document.getElementById('colorbar-tick-marks');
+  const colorbarTicks = document.getElementById('colorbar-ticks');
+
+  if (renderWrapper && colorbarCanvas) {
+    const renderHeight = renderWrapper.offsetHeight;
+    const colorbarHeight = Math.min(renderHeight * 0.93, 420); // 93% of render height, max 420px
+
+    colorbarCanvas.height = colorbarHeight;
+    if (colorbarTickMarks) {
+      colorbarTickMarks.style.height = colorbarHeight + 'px';
+    }
+    if (colorbarTicks) {
+      colorbarTicks.style.height = colorbarHeight + 'px';
+    }
+
+    // Redraw colorbar with new height if a mode is active
+    if (visualizationMode !== 'default') {
+      drawColorbar(visualizationMode);
+    }
+  }
+}
+
+// Debounced resize handler with render visibility toggle
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  // Hide render wrapper during resize
+  const renderWrapper = document.getElementById('render-wrapper');
+  if (renderWrapper) {
+    renderWrapper.style.opacity = '0.3';
+  }
+
+  // Clear existing timeout
+  clearTimeout(resizeTimeout);
+
+  // Set new timeout to trigger camera reset when resizing stops
+  resizeTimeout = setTimeout(() => {
+    // Wait for VTK to finish resizing the canvas
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Trigger camera reset (same as clicking reset button)
+        resetCameraToDefault();
+
+        // Re-apply zoom (fixed at 1.0 as camera reset handles scaling)
+        const camera = renderer.getActiveCamera();
+        camera.zoom(1.0);
+        renderWindow.getRenderWindow().render();
+
+        // Scale colorbar to match new render height
+        scaleColorbar();
+
+        // Restore render wrapper visibility
+        if (renderWrapper) {
+          renderWrapper.style.opacity = '1';
+        }
+
+        debugRenderPosition();
+      });
+    });
+  }, 300); // Wait 300ms after user stops resizing
+});
 
 // Debug initial position after a short delay
 setTimeout(debugRenderPosition, 1000);
@@ -987,7 +1049,24 @@ function loadVoxelSlice(bounds) {
     const camera = renderer.getActiveCamera();
     camera.azimuth(210);
     camera.elevation(30);
-    camera.zoom(0.9);
+
+    // Dynamic zoom based on viewport width
+    const viewportWidth = window.innerWidth;
+    let zoomFactor;
+    if (viewportWidth < 480) {
+      // Mobile phones
+      zoomFactor = 0.7;
+    } else if (viewportWidth < 768) {
+      // Tablets
+      zoomFactor = 0.9;
+    } else if (viewportWidth < 1024) {
+      // Small laptops
+      zoomFactor = 1.1;
+    } else {
+      // Desktop
+      zoomFactor = 1.3;
+    }
+    camera.zoom(1);
 
     // Move camera position with manual vertical offset
     const position = camera.getPosition();
@@ -1523,6 +1602,7 @@ function setVisualizationMode(mode) {
   const colorbarContainer = document.getElementById('colorbar-container');
   if (mode !== 'default') {
     colorbarContainer.classList.add('visible');
+    scaleColorbar(); // Scale colorbar before drawing
     drawColorbar(mode);
   } else {
     colorbarContainer.classList.remove('visible');
