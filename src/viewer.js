@@ -987,7 +987,7 @@ function loadVoxelSlice(bounds) {
     const camera = renderer.getActiveCamera();
     camera.azimuth(210);
     camera.elevation(30);
-    camera.zoom(1.3);
+    camera.zoom(0.9);
 
     // Move camera position with manual vertical offset
     const position = camera.getPosition();
