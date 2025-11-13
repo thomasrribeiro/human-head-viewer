@@ -751,69 +751,7 @@ function updateLoadingStatus(message) {
   }
 }
 
-// Debug positioning on load
-window.addEventListener('DOMContentLoaded', () => {
-  console.log('=== DEBUG: Element Positioning ===');
-  const renderWrapper = document.getElementById('render-wrapper');
-  const sliderContainer = document.getElementById('slider-container');
-  const colorbarContainer = document.getElementById('colorbar-container');
-  const topBar = document.getElementById('top-bar');
-  const vizModeContainer = document.getElementById('viz-mode-container');
-
-  if (renderWrapper) {
-    const rect = renderWrapper.getBoundingClientRect();
-    console.log('render-wrapper:', {
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height,
-      centerY: rect.top + rect.height / 2
-    });
-  }
-
-  if (sliderContainer) {
-    const rect = sliderContainer.getBoundingClientRect();
-    const styles = window.getComputedStyle(sliderContainer);
-    console.log('slider-container:', {
-      top: rect.top,
-      left: rect.left,
-      height: rect.height,
-      cssTop: styles.top,
-      centerY: rect.top + rect.height / 2
-    });
-  }
-
-  if (colorbarContainer) {
-    const rect = colorbarContainer.getBoundingClientRect();
-    const styles = window.getComputedStyle(colorbarContainer);
-    console.log('colorbar-container:', {
-      top: rect.top,
-      right: styles.right,
-      height: rect.height,
-      cssTop: styles.top
-    });
-  }
-
-  if (topBar) {
-    const rect = topBar.getBoundingClientRect();
-    console.log('top-bar:', {
-      height: rect.height,
-      bottom: rect.bottom
-    });
-  }
-
-  if (vizModeContainer) {
-    const rect = vizModeContainer.getBoundingClientRect();
-    console.log('viz-mode-container:', {
-      top: rect.top,
-      height: rect.height,
-      bottom: rect.bottom
-    });
-  }
-
-  console.log('body padding-top:', window.getComputedStyle(document.body).paddingTop);
-  console.log('=================================');
-});
+// Removed debug positioning logs
 
 
 async function loadAllData() {
@@ -825,14 +763,12 @@ async function loadAllData() {
     updateLoadingStatus('Loading properties...');
     await loadTissueProperties();
   } catch (error) {
-    console.error('Error loading data files:', error);
-
     // Update status to error
     const statusIndicator = document.getElementById('status-indicator');
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
       statusIndicator.className = 'error';
-      statusText.textContent = 'Failed to load data';
+      statusText.textContent = 'Failed to load data files';
     }
     return; // Stop execution if critical data fails to load
   }
@@ -841,6 +777,12 @@ async function loadAllData() {
 
   // Then load STL files
   stlFiles.forEach((filename, index) => {
+    // Extract tissue name for display
+    const tissueName = filename.replace(/ ?\.stl$/, '').replace(/_/g, '/');
+
+    // Update loading status with tissue name
+    updateLoadingStatus(`Loading ${tissueName}...`);
+
     const reader = vtkSTLReader.newInstance();
     const mapper = vtkMapper.newInstance();
     const actor = vtkActor.newInstance();
@@ -888,9 +830,7 @@ async function loadAllData() {
         loadVoxelSlice(stlBounds);
       }
     }).catch((error) => {
-      // Only log errors for debugging, don't show error status for individual files
-      console.warn(`Could not load ${filename} - skipping`);
-
+      // Silently skip files that don't exist (some tissues may not have STL files)
       loadedCount++;
 
       // Continue loading if all files are processed (even with errors)
@@ -936,30 +876,7 @@ function scaleColorbar() {
       const renderRect = renderWrapper.getBoundingClientRect();
       const sliderContainerRect = sliderContainer.getBoundingClientRect();
 
-      console.log('=== SLIDER CENTERING DEBUG ===');
-      console.log('Render wrapper:');
-      console.log('  - top:', renderRect.top);
-      console.log('  - height:', renderRect.height);
-      console.log('  - center Y:', renderRect.top + renderRect.height / 2);
-
-      console.log('Slider container:');
-      console.log('  - top:', sliderContainerRect.top);
-      console.log('  - height:', sliderContainerRect.height);
-      console.log('  - center Y:', sliderContainerRect.top + sliderContainerRect.height / 2);
-
-      if (slider) {
-        const sliderRect = slider.getBoundingClientRect();
-        console.log('Depth slider:');
-        console.log('  - top:', sliderRect.top);
-        console.log('  - height:', sliderRect.height);
-        console.log('  - center Y:', sliderRect.top + sliderRect.height / 2);
-
-        const renderCenter = renderRect.top + renderRect.height / 2;
-        const sliderCenter = sliderRect.top + sliderRect.height / 2;
-        const offset = sliderCenter - renderCenter;
-        console.log('Offset from render center:', offset, 'px');
-      }
-      console.log('==============================');
+      // Removed slider centering debug logs
     }
 
     // Redraw colorbar with new height if a mode is active
@@ -1009,15 +926,10 @@ window.addEventListener('resize', () => {
         if (colorbarContainer && colorbarContainer.classList.contains('visible')) {
           colorbarContainer.style.opacity = '1';
         }
-
-        debugRenderPosition();
       });
     });
   }, 300); // Wait 300ms after user stops resizing
 });
-
-// Debug initial position after a short delay
-setTimeout(debugRenderPosition, 1000);
 
 // Start loading
 loadAllData();
@@ -1051,13 +963,12 @@ function loadVoxelSlice(bounds) {
     try {
       rawVoxelData = voxelReader.getOutputData();
     } catch (error) {
-      console.error('Error getting voxel output data:', error);
       alert('Memory allocation error loading voxel data. Try closing other browser tabs and refreshing.');
       return;
     }
 
     if (!rawVoxelData) {
-      console.error('Failed to load voxel data - getOutputData returned undefined');
+      // Failed to load voxel data
       return;
     }
 
@@ -1229,20 +1140,13 @@ function loadVoxelSlice(bounds) {
     const sliderContainer = document.getElementById('slider-container');
     const resetButton = document.getElementById('reset-camera-btn');
 
-    console.log('DEBUG: Setting UI element opacity to 1');
-    console.log('vizModeContainer:', vizModeContainer);
-    console.log('vizModeContainer position:', vizModeContainer ? vizModeContainer.getBoundingClientRect() : 'not found');
-    console.log('resetButton:', resetButton);
-    console.log('resetButton position:', resetButton ? resetButton.getBoundingClientRect() : 'not found');
-
+    // Set UI elements to visible
     if (vizModeContainer) {
       vizModeContainer.style.opacity = '1';
-      console.log('Set vizModeContainer opacity to 1, computed style:', window.getComputedStyle(vizModeContainer).opacity);
     }
     if (sliderContainer) sliderContainer.style.opacity = '1';
     if (resetButton) {
       resetButton.style.opacity = '1';
-      console.log('Set resetButton opacity to 1, computed style:', window.getComputedStyle(resetButton).opacity);
     }
 
     // Set up slider control
@@ -1432,7 +1336,6 @@ function loadVoxelSlice(bounds) {
       });
     }
   }).catch((error) => {
-    console.error('Failed to load voxel data:', error);
     alert('Failed to load 3D model data. Please refresh the page and try again.');
   });
 }
@@ -1690,34 +1593,7 @@ function drawColorbar(mode) {
 }
 
 // Debug function to print render element center position
-function debugRenderPosition() {
-  const renderWrapper = document.getElementById('render-wrapper');
-  const colorbar = document.getElementById('colorbar-container');
-  const slider = document.getElementById('slider-container');
-
-  if (!renderWrapper) return;
-
-  const renderRect = renderWrapper.getBoundingClientRect();
-  const centerX = renderRect.left + renderRect.width / 2;
-  const centerY = renderRect.top + renderRect.height / 2;
-  const pageWidth = window.innerWidth;
-  const pageCenterX = pageWidth / 2;
-  const offset = centerX - pageCenterX;
-
-
-  if (colorbar) {
-    const colorbarRect = colorbar.getBoundingClientRect();
-    const colorbarCenterY = colorbarRect.top + colorbarRect.height / 2;
-    const yOffset = colorbarCenterY - centerY;
-  }
-
-  if (slider) {
-    const sliderRect = slider.getBoundingClientRect();
-    const sliderCenterY = sliderRect.top + sliderRect.height / 2;
-    const yOffset = sliderCenterY - centerY;
-  }
-
-}
+// Removed debug render position function
 
 // Function to switch visualization modes
 function setVisualizationMode(mode) {
