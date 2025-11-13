@@ -64,7 +64,7 @@ body {
   justify-content: center;
   align-items: center;
   gap: 10px;
-  max-width: 600px;
+  max-width: 700px;
   width: auto;
 }
 #frequency-controls {
@@ -73,6 +73,7 @@ body {
   gap: 8px;
   font-family: Arial, sans-serif;
   font-size: 14px;
+  flex-shrink: 0;
   margin-left: 30px;
 }
 #frequency-controls.visible {
@@ -275,12 +276,11 @@ body {
   writing-mode: vertical-lr;
   direction: rtl;
   width: 8px;
-  height: 66.67%;
+  height: 60.5%;
   background: #ddd;
   outline: none;
   opacity: 0.7;
   transition: opacity 0.2s;
-  margin-top: 100px;
 }
 #depth-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -320,6 +320,7 @@ body {
   font-family: Arial, sans-serif;
   color: #333;
   user-select: none;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -418,7 +419,7 @@ body {
 }
 #colorbar-container.visible {
   width: 120px;
-  padding: 15px;
+  padding: 15px 5px 15px 15px;
   opacity: 1;
 }
 #colorbar-content {

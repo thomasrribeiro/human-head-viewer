@@ -840,7 +840,7 @@ function scaleColorbar() {
 
   if (renderWrapper && colorbarCanvas) {
     const renderHeight = renderWrapper.offsetHeight;
-    const colorbarHeight = renderHeight * 0.814; // 81.4% of render height (46.5% * 1.75)
+    const colorbarHeight = renderHeight * 0.6105; // 61.05% of render height (81.4% * 0.75)
 
     colorbarCanvas.height = colorbarHeight;
     if (colorbarTickMarks) {
@@ -855,18 +855,34 @@ function scaleColorbar() {
 
     // Debug slider positioning
     if (sliderContainer) {
-      console.log('=== SLIDER DEBUG ===');
-      console.log('Render height:', renderHeight);
-      console.log('Slider container height (CSS var):', sliderContainer.style.height);
-      console.log('Slider container computed height:', sliderContainer.offsetHeight);
-      console.log('Slider container position:', sliderContainer.getBoundingClientRect());
-      console.log('Render wrapper position:', renderWrapper.getBoundingClientRect());
       const slider = document.getElementById('depth-slider');
+      const renderRect = renderWrapper.getBoundingClientRect();
+      const sliderContainerRect = sliderContainer.getBoundingClientRect();
+
+      console.log('=== SLIDER CENTERING DEBUG ===');
+      console.log('Render wrapper:');
+      console.log('  - top:', renderRect.top);
+      console.log('  - height:', renderRect.height);
+      console.log('  - center Y:', renderRect.top + renderRect.height / 2);
+
+      console.log('Slider container:');
+      console.log('  - top:', sliderContainerRect.top);
+      console.log('  - height:', sliderContainerRect.height);
+      console.log('  - center Y:', sliderContainerRect.top + sliderContainerRect.height / 2);
+
       if (slider) {
-        console.log('Depth slider position:', slider.getBoundingClientRect());
-        console.log('Depth slider computed height:', slider.offsetHeight);
+        const sliderRect = slider.getBoundingClientRect();
+        console.log('Depth slider:');
+        console.log('  - top:', sliderRect.top);
+        console.log('  - height:', sliderRect.height);
+        console.log('  - center Y:', sliderRect.top + sliderRect.height / 2);
+
+        const renderCenter = renderRect.top + renderRect.height / 2;
+        const sliderCenter = sliderRect.top + sliderRect.height / 2;
+        const offset = sliderCenter - renderCenter;
+        console.log('Offset from render center:', offset, 'px');
       }
-      console.log('===================');
+      console.log('==============================');
     }
 
     // Redraw colorbar with new height if a mode is active
@@ -941,7 +957,7 @@ let voxelOpacityFunction = null;
 let defaultCameraState = null;
 
 // Manual camera vertical offset - adjust this to shift view up/down
-const CAMERA_VERTICAL_OFFSET = -20;
+const CAMERA_VERTICAL_OFFSET = 0;
 
 function loadVoxelSlice(bounds) {
   stlBounds = bounds;
@@ -1634,6 +1650,8 @@ function setVisualizationMode(mode) {
   const colorbarContainer = document.getElementById('colorbar-container');
   if (mode !== 'default') {
     colorbarContainer.classList.add('visible');
+    // Ensure opacity is set to 1 (in case it was hidden during resize)
+    colorbarContainer.style.opacity = '1';
     scaleColorbar(); // Scale colorbar before drawing
     drawColorbar(mode);
   } else {
