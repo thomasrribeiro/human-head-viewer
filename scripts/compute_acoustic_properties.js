@@ -141,19 +141,16 @@ function validate(tissues, validationFilePath, midaTissueNames) {
   let missingTissues = 0;
   let noReference = 0;
 
-  console.log('\n=== Validation at 1 MHz (MIDA tissues only) ===\n');
 
   midaTissueNames.forEach(tissueName => {
     totalTissues++;
 
     if (!tissues[tissueName]) {
-      console.log(`❌ MISSING: ${tissueName} (not in attenuation database)`);
       missingTissues++;
       return;
     }
 
     if (!validationMap[tissueName]) {
-      console.log(`⚠️  NO REFERENCE: ${tissueName} (not in validation file)`);
       noReference++;
       return;
     }
@@ -166,22 +163,13 @@ function validate(tissues, validationFilePath, midaTissueNames) {
 
     if (percentError < 1.0) {
       correctTissues++;
-      console.log(`✓ ${tissueName}: ${calculatedAlpha.toFixed(6)} Np/m (ref: ${referenceAlpha}, error: ${percentError.toFixed(4)}%)`);
     } else if (Math.abs(calculatedAlpha - referenceAlpha) < 0.001) {
       // Both very close to zero
       correctTissues++;
-      console.log(`✓ ${tissueName}: ${calculatedAlpha.toFixed(6)} Np/m (ref: ${referenceAlpha}, both ~0)`);
     } else {
-      console.log(`✗ ${tissueName}: ${calculatedAlpha.toFixed(6)} Np/m (ref: ${referenceAlpha}, error: ${percentError.toFixed(4)}%)`);
     }
   });
 
-  console.log(`\n=== Summary ===`);
-  console.log(`Total MIDA tissues: ${totalTissues}`);
-  console.log(`Correct (< 1% error): ${correctTissues}`);
-  console.log(`Missing from database: ${missingTissues}`);
-  console.log(`No reference data: ${noReference}`);
-  console.log(`Accuracy: ${(correctTissues / totalTissues * 100).toFixed(2)}%`);
 }
 
 // Main execution
@@ -190,25 +178,30 @@ const validationPath = path.join(__dirname, '../data/Database-V5-0/attenuation_c
 const midaPath = path.join(__dirname, '../data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
 const outputPath = path.join(__dirname, '../data/acoustic_attenuation.json');
 
-console.log('Parsing acoustic attenuation database...');
 const tissues = parseAcousticDatabase(databasePath);
 
-console.log(`Parsed ${Object.keys(tissues).length} tissue entries (including alternative names)`);
 
 // Count unique tissues
 const uniqueTissues = new Set();
 Object.values(tissues).forEach(t => uniqueTissues.add(t.name));
-console.log(`Unique tissues: ${uniqueTissues.size}`);
 
 // Load MIDA tissue names
-console.log('\nLoading MIDA tissue names...');
 const midaTissueNames = loadMIDATissueNames(midaPath);
-console.log(`Found ${midaTissueNames.length} MIDA tissues`);
 
 // Validate against MIDA tissues only
 validate(tissues, validationPath, midaTissueNames);
 
-// Save to JSON
-console.log(`\nSaving to ${outputPath}...`);
-fs.writeFileSync(outputPath, JSON.stringify(tissues, null, 2));
-console.log('Done!');
+// Update unified tissue properties file
+const { loadTissueProperties, getOrCreateTissue, saveTissueProperties } = require('./tissue-properties-helper');
+
+const tissueProperties = loadTissueProperties();
+
+Object.entries(tissues).forEach(([tissueName, tissueData]) => {
+  const tissue = getOrCreateTissue(tissueProperties, tissueName, tissueData);
+  if (!tissue.properties.acoustic) {
+    tissue.properties.acoustic = {};
+  }
+  tissue.properties.acoustic.attenuation = tissueData.attenuation;
+});
+
+saveTissueProperties(tissueProperties);

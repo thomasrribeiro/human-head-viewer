@@ -98,7 +98,6 @@ function validate(tissues, midaTissueNames) {
   let withoutData = 0;
   let missing = 0;
 
-  console.log('\n=== MIDA Tissue Validation ===\n');
 
   const tissuesWithoutData = [];
   const missingTissues = [];
@@ -107,7 +106,6 @@ function validate(tissues, midaTissueNames) {
     totalTissues++;
 
     if (!tissues[tissueName]) {
-      console.log(`❌ MISSING: ${tissueName}`);
       missing++;
       missingTissues.push(tissueName);
       return;
@@ -123,21 +121,11 @@ function validate(tissues, midaTissueNames) {
     }
   });
 
-  console.log('\n=== Summary ===');
-  console.log(`Total MIDA tissues: ${totalTissues}`);
-  console.log(`Mapped: ${mapped} (${((mapped/totalTissues)*100).toFixed(1)}%)`);
-  console.log(`With B/A data: ${withData} (${((withData/totalTissues)*100).toFixed(1)}%)`);
-  console.log(`Without B/A data (will be transparent): ${withoutData} (${((withoutData/totalTissues)*100).toFixed(1)}%)`);
-  console.log(`Missing from database: ${missing}`);
 
   if (withoutData > 0) {
-    console.log('\nTissues without B/A data (will be transparent):');
-    tissuesWithoutData.forEach(name => console.log(`  - ${name}`));
   }
 
   if (missing > 0) {
-    console.log('\nMissing tissues:');
-    missingTissues.forEach(name => console.log(`  - ${name}`));
   }
 }
 
@@ -146,25 +134,30 @@ const databasePath = path.join(__dirname, '../data/Database-V5-0/Thermal_dielect
 const midaPath = path.join(__dirname, '../data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
 const outputPath = path.join(__dirname, '../data/nonlinearity_parameter.json');
 
-console.log('Parsing Non-linearity Parameter (B/A) database...');
 const tissues = parseNonlinearityDatabase(databasePath);
 
-console.log(`Parsed ${Object.keys(tissues).length} tissue entries (including alternative names)`);
 
 // Count unique tissues
 const uniqueTissues = new Set();
 Object.values(tissues).forEach(t => uniqueTissues.add(t.name));
-console.log(`Unique tissues: ${uniqueTissues.size}`);
 
 // Load MIDA tissue names
-console.log('\nLoading MIDA tissue names...');
 const midaTissueNames = loadMIDATissueNames(midaPath);
-console.log(`Found ${midaTissueNames.length} MIDA tissues`);
 
 // Validate
 validate(tissues, midaTissueNames);
 
-// Save to JSON
-console.log(`\nSaving to ${outputPath}...`);
-fs.writeFileSync(outputPath, JSON.stringify(tissues, null, 2));
-console.log('Done!');
+// Update unified tissue properties file
+const { loadTissueProperties, getOrCreateTissue, saveTissueProperties } = require('./tissue-properties-helper');
+
+const tissueProperties = loadTissueProperties();
+
+Object.entries(tissues).forEach(([tissueName, tissueData]) => {
+  const tissue = getOrCreateTissue(tissueProperties, tissueName, tissueData);
+  if (!tissue.properties.acoustic) {
+    tissue.properties.acoustic = {};
+  }
+  tissue.properties.acoustic.nonlinearity = tissueData.nonlinearityParameter;
+});
+
+saveTissueProperties(tissueProperties);

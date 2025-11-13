@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('Parsing Water Content database...');
 
 const databasePath = '/Users/thomasribeiro/Documents/tissue_database/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt';
 const midaPath = '/Users/thomasribeiro/code/human-head-viewer/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt';
@@ -57,8 +56,6 @@ for (let i = 3; i < lines.length; i++) {
   });
 }
 
-console.log(`Parsed ${tissueCount} tissue entries (including alternative names)`);
-console.log(`Unique tissues: ${tissueCount}`);
 
 // Load MIDA tissue names to validate
 const midaLines = fs.readFileSync(midaPath, 'utf-8').split('\n');
@@ -75,11 +72,8 @@ for (let i = 1; i < midaLines.length; i++) {
   }
 }
 
-console.log(`\nLoading MIDA tissue names...`);
-console.log(`Found ${midaTissueNames.length} MIDA tissues`);
 
 // Validate MIDA tissues
-console.log('\n=== MIDA Tissue Validation ===\n');
 
 let mappedCount = 0;
 let missingCount = 0;
@@ -105,32 +99,27 @@ midaTissueNames.forEach(tissueName => {
 // Manual fixes for MIDA tissues
 if (tissues['Air']) {
   tissues['Background'] = tissues['Air'];
-  console.log('Manual fix: Mapped Background → Air');
 }
 
 if (tissues['Eye (Sclera)']) {
   tissues['Eye Retina/Choroid/Sclera'] = tissues['Eye (Sclera)'];
-  console.log('Manual fix: Mapped Eye Retina/Choroid/Sclera → Eye (Sclera)');
 }
 
-console.log('\n=== Summary ===');
-console.log(`Total MIDA tissues: ${midaTissueNames.length}`);
-console.log(`Mapped: ${mappedCount} (${(mappedCount/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`With water content data: ${withData} (${(withData/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`Without water content data (will be transparent): ${tissuesWithoutData.length} (${(tissuesWithoutData.length/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`Missing from database: ${missingCount}`);
 
 if (tissuesWithoutData.length > 0) {
-  console.log('\nTissues without water content data (will be transparent):');
-  tissuesWithoutData.forEach(name => console.log(`  - ${name}`));
 }
 
 if (missingTissues.length > 0) {
-  console.log('\nMissing MIDA tissues:');
-  missingTissues.forEach(name => console.log(`  - ${name}`));
 }
 
-// Save to JSON
-console.log(`\nSaving to ${outputPath}...`);
-fs.writeFileSync(outputPath, JSON.stringify(tissues, null, 2));
-console.log('Done!');
+// Update unified tissue properties file
+const { loadTissueProperties, getOrCreateTissue, saveTissueProperties } = require('./tissue-properties-helper');
+
+const tissueProperties = loadTissueProperties();
+
+Object.entries(tissues).forEach(([tissueName, tissueData]) => {
+  const tissue = getOrCreateTissue(tissueProperties, tissueName, tissueData);
+  tissue.properties.waterContent = tissueData.waterContent;
+});
+
+saveTissueProperties(tissueProperties);

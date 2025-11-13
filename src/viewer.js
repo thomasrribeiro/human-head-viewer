@@ -30,6 +30,17 @@ const renderWindow = vtkFullScreenRenderWindow.newInstance({
 });
 const renderer = renderWindow.getRenderer();
 
+// Force VTK to respect container dimensions (bypass aspect ratio lock)
+const resizeObserver = new ResizeObserver(() => {
+  const container = document.getElementById('render-wrapper');
+  if (container) {
+    const openglRenderWindow = renderWindow.getApiSpecificRenderWindow();
+    openglRenderWindow.setSize(container.offsetWidth, container.offsetHeight);
+    renderWindow.resize();
+  }
+});
+resizeObserver.observe(document.getElementById('render-wrapper'));
+
 // Add orientation axes widget
 const axes = vtkAxesActor.newInstance();
 const orientationWidget = vtkOrientationMarkerWidget.newInstance({
@@ -52,6 +63,10 @@ let tissueColorsByID = {};
 let tissueColorsByName = {};
 let tissueNamesByID = {}; // Map tissue ID to name
 let stlFiles = [];
+// Combined tissue properties data
+let tissuePropertiesData = {}; // All tissue properties in one structure
+
+// Property-specific lookup maps (for backward compatibility)
 let densityByTissueName = {};
 let heatCapacityByTissueName = {};
 let thermalConductivityByTissueName = {};
@@ -59,19 +74,22 @@ let heatTransferRateByTissueName = {};
 let heatGenerationRateByTissueName = {};
 let speedOfSoundByTissueName = {};
 let lfConductivityByTissueName = {};
-let dielectricPropertiesData = {}; // Cole-Cole parameters for each tissue
 let conductivityByTissueName = {};
 let permittivityByTissueName = {};
-let acousticAttenuationData = {}; // Attenuation parameters {alpha0, b} for each tissue
 let attenuationConstantByTissueName = {};
-let nonlinearityParameterData = {}; // B/A parameter for each tissue
 let nonlinearityParameterByTissueName = {};
-let relaxationTimeData = {}; // T1/T2 relaxation times for each tissue at different field strengths
 let relaxationTimeByTissueName = {};
+let waterContentByTissueName = {};
+let elementalCompositionByTissueName = {};
+
+// Current visualization parameters
 let currentFieldStrength = '1.5T'; // Default: 1.5T
 let currentRelaxationParameter = 'T1'; // Default: T1
 let currentFrequency = 100e6; // Default: 100 MHz (for electromagnetic and acoustic)
+let currentElement = 'hydrogen'; // Default element
 let visualizationMode = 'default';
+
+// Min/max values for colormap scaling
 let minDensity = Infinity;
 let maxDensity = -Infinity;
 let minHeatCapacity = Infinity;
@@ -96,18 +114,13 @@ let minNonlinearityParameter = Infinity;
 let maxNonlinearityParameter = -Infinity;
 let minRelaxationTime = Infinity;
 let maxRelaxationTime = -Infinity;
-let waterContentData = {}; // Water content for each tissue
-let waterContentByTissueName = {};
 let minWaterContent = Infinity;
 let maxWaterContent = -Infinity;
-let elementalCompositionData = {}; // Elemental composition for each tissue
-let elementalCompositionByTissueName = {};
-let currentElement = 'hydrogen'; // Default element
 let minElementalComposition = Infinity;
 let maxElementalComposition = -Infinity;
 
 async function loadTissueColors() {
-  const response = await fetch('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt');
+  const response = await fetch(`${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt`);
   if (!response.ok) {
     throw new Error(`Failed to load MIDA_v1.txt: ${response.status} ${response.statusText}`);
   }
@@ -132,8 +145,6 @@ async function loadTissueColors() {
     stlFiles.push(stlFilename);
   });
 
-  // console.log(`Loaded ${Object.keys(tissueColorsByID).length} tissue colors from MIDA_v1.txt`);
-  // console.log(`Generated ${stlFiles.length} STL filenames`);
 }
 
 // Helper function to calculate percentile
@@ -147,20 +158,15 @@ function calculatePercentile(values, percentile) {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 }
 
-async function loadDensityData() {
-  const response = await fetch('/data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
+// Load unified tissue properties JSON file
+async function loadTissueProperties() {
+  const response = await fetch(`${import.meta.env.BASE_URL}data/tissue_properties.json`);
   if (!response.ok) {
-    throw new Error(`Failed to load thermal/dielectric database: ${response.status} ${response.statusText}`);
+    throw new Error(`Failed to load tissue_properties.json: ${response.status} ${response.statusText}`);
   }
-  const text = await response.text();
-  const lines = text.trim().split('\n');
+  tissuePropertiesData = await response.json();
 
-  // Find the column index for "Alternative Names"
-  const headerLine = lines[1];
-  const headers = headerLine.split('\t');
-  const altNamesIndex = headers.indexOf('Alternative Names');
-
-  // Arrays to collect all values for percentile calculation
+  // Extract all property values for percentile calculation
   const densityValues = [];
   const heatCapacityValues = [];
   const thermalConductivityValues = [];
@@ -168,54 +174,65 @@ async function loadDensityData() {
   const heatGenerationRateValues = [];
   const speedOfSoundValues = [];
   const lfConductivityValues = [];
+  const nonlinearityValues = [];
+  const waterValues = [];
 
-  // Skip header lines (first 3 lines: blank, main headers, sub-headers)
-  for (let i = 3; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
+  Object.keys(tissuePropertiesData).forEach(tissueName => {
+    const tissue = tissuePropertiesData[tissueName];
+    const props = tissue.properties;
 
-    const parts = line.split('\t');
-
-    // First column is empty, actual data starts at index 1
-    const tissueName = parts[1];
-    const densityAvg = parseFloat(parts[2]);
-    const heatCapacityAvg = parseFloat(parts[6]);
-    const thermalConductivityAvg = parseFloat(parts[10]);
-    const heatTransferRateAvg = parseFloat(parts[14]);
-    const heatGenerationRateAvg = parseFloat(parts[18]);
-    const speedOfSoundAvg = parseFloat(parts[65]);
-    const lfConductivityAvg = parseFloat(parts[22]); // LF Conductivity column
-    const semcadNames = altNamesIndex >= 0 ? parts[altNamesIndex] : null;
-
-    // Helper function to store value by tissue name and alternative names
-    const storeValue = (valueMap, valuesArray, value) => {
-      if (isNaN(value) || value <= 0) return;
-
-      // Collect value for percentile calculation
-      valuesArray.push(value);
-
-      if (semcadNames && semcadNames !== 'None' && semcadNames.length > 0) {
-        const altNames = semcadNames.replace(/"/g, '').split('@');
-        altNames.forEach(altName => {
-          const cleanName = altName.trim();
-          if (cleanName && cleanName !== 'None') {
-            valueMap[cleanName] = value;
-          }
-        });
+    // Thermal properties
+    if (props.thermal) {
+      if (props.thermal.density !== null && props.thermal.density > 0) {
+        densityByTissueName[tissueName] = props.thermal.density;
+        densityValues.push(props.thermal.density);
       }
-      valueMap[tissueName] = value;
-    };
+      if (props.thermal.heatCapacity !== null && props.thermal.heatCapacity > 0) {
+        heatCapacityByTissueName[tissueName] = props.thermal.heatCapacity;
+        heatCapacityValues.push(props.thermal.heatCapacity);
+      }
+      if (props.thermal.thermalConductivity !== null && props.thermal.thermalConductivity > 0) {
+        thermalConductivityByTissueName[tissueName] = props.thermal.thermalConductivity;
+        thermalConductivityValues.push(props.thermal.thermalConductivity);
+      }
+      if (props.thermal.heatTransferRate !== null && props.thermal.heatTransferRate > 0) {
+        heatTransferRateByTissueName[tissueName] = props.thermal.heatTransferRate;
+        heatTransferRateValues.push(props.thermal.heatTransferRate);
+      }
+      if (props.thermal.heatGenerationRate !== null && props.thermal.heatGenerationRate > 0) {
+        heatGenerationRateByTissueName[tissueName] = props.thermal.heatGenerationRate;
+        heatGenerationRateValues.push(props.thermal.heatGenerationRate);
+      }
+    }
 
-    storeValue(densityByTissueName, densityValues, densityAvg);
-    storeValue(heatCapacityByTissueName, heatCapacityValues, heatCapacityAvg);
-    storeValue(thermalConductivityByTissueName, thermalConductivityValues, thermalConductivityAvg);
-    storeValue(heatTransferRateByTissueName, heatTransferRateValues, heatTransferRateAvg);
-    storeValue(heatGenerationRateByTissueName, heatGenerationRateValues, heatGenerationRateAvg);
-    storeValue(speedOfSoundByTissueName, speedOfSoundValues, speedOfSoundAvg);
-    storeValue(lfConductivityByTissueName, lfConductivityValues, lfConductivityAvg);
-  }
+    // Acoustic properties
+    if (props.acoustic) {
+      if (props.acoustic.speedOfSound !== null && props.acoustic.speedOfSound > 0) {
+        speedOfSoundByTissueName[tissueName] = props.acoustic.speedOfSound;
+        speedOfSoundValues.push(props.acoustic.speedOfSound);
+      }
+      if (props.acoustic.nonlinearity !== null && props.acoustic.nonlinearity > 0) {
+        nonlinearityParameterByTissueName[tissueName] = props.acoustic.nonlinearity;
+        nonlinearityValues.push(props.acoustic.nonlinearity);
+      }
+    }
 
-  // Use 10th to 90th percentile bounds
+    // Dielectric properties
+    if (props.dielectric) {
+      if (props.dielectric.lfConductivity !== null && props.dielectric.lfConductivity > 0) {
+        lfConductivityByTissueName[tissueName] = props.dielectric.lfConductivity;
+        lfConductivityValues.push(props.dielectric.lfConductivity);
+      }
+    }
+
+    // Water content
+    if (props.waterContent !== null && props.waterContent > 0) {
+      waterContentByTissueName[tissueName] = props.waterContent;
+      waterValues.push(props.waterContent);
+    }
+  });
+
+  // Calculate percentile bounds for all properties
   minDensity = calculatePercentile(densityValues, 10);
   maxDensity = calculatePercentile(densityValues, 90);
   minHeatCapacity = calculatePercentile(heatCapacityValues, 10);
@@ -230,110 +247,38 @@ async function loadDensityData() {
   maxSpeedOfSound = calculatePercentile(speedOfSoundValues, 90);
   minLFConductivity = calculatePercentile(lfConductivityValues, 10);
   maxLFConductivity = calculatePercentile(lfConductivityValues, 90);
-}
 
-// Load dielectric properties and compute electromagnetic properties at current frequency
-async function loadDielectricProperties() {
-  const response = await fetch('/data/dielectric_properties.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load dielectric_properties.json: ${response.status} ${response.statusText}`);
+  if (nonlinearityValues.length > 0) {
+    minNonlinearityParameter = Math.min(...nonlinearityValues);
+    maxNonlinearityParameter = Math.max(...nonlinearityValues);
   }
-  dielectricPropertiesData = await response.json();
 
-  // Compute properties at current frequency
-  computeElectromagneticProperties(currentFrequency);
-}
-
-async function loadAcousticAttenuationData() {
-  const response = await fetch('/data/acoustic_attenuation.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load acoustic_attenuation.json: ${response.status} ${response.statusText}`);
-  }
-  acousticAttenuationData = await response.json();
-
-  // Compute attenuation at current frequency
-  computeAcousticAttenuation(currentFrequency);
-}
-
-async function loadNonlinearityParameterData() {
-  const response = await fetch('/data/nonlinearity_parameter.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load nonlinearity_parameter.json: ${response.status} ${response.statusText}`);
-  }
-  nonlinearityParameterData = await response.json();
-
-  // Process nonlinearity parameter for all tissues
-  const baValues = [];
-
-  Object.keys(nonlinearityParameterData).forEach(tissueName => {
-    const tissueData = nonlinearityParameterData[tissueName];
-    const baValue = tissueData.nonlinearityParameter;
-
-    nonlinearityParameterByTissueName[tissueName] = baValue;
-
-    if (baValue !== null && baValue > 0) {
-      baValues.push(baValue);
-    }
-  });
-
-  // Use full min/max range for better differentiation (data already has limited variation)
-  if (baValues.length > 0) {
-    minNonlinearityParameter = Math.min(...baValues);
-    maxNonlinearityParameter = Math.max(...baValues);
-  }
-}
-
-async function loadRelaxationTimeData() {
-  const response = await fetch('/data/relaxation_times.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load relaxation_times.json: ${response.status} ${response.statusText}`);
-  }
-  relaxationTimeData = await response.json();
-}
-
-async function loadWaterContentData() {
-  const response = await fetch('/data/water_content.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load water_content.json: ${response.status} ${response.statusText}`);
-  }
-  waterContentData = await response.json();
-
-  // Process water content for all tissues
-  const waterValues = [];
-
-  Object.keys(waterContentData).forEach(tissueName => {
-    const tissueData = waterContentData[tissueName];
-    const waterContent = tissueData.waterContent;
-
-    waterContentByTissueName[tissueName] = waterContent;
-
-    if (waterContent !== null && waterContent > 0) {
-      waterValues.push(waterContent);
-    }
-  });
-
-  // Use 10th to 90th percentile bounds
   if (waterValues.length > 0) {
     minWaterContent = calculatePercentile(waterValues, 10);
     maxWaterContent = calculatePercentile(waterValues, 90);
   }
+
+  // Compute electromagnetic properties at default frequency
+  computeElectromagneticProperties(currentFrequency);
+
+  // Compute acoustic attenuation at default frequency
+  computeAcousticAttenuation(currentFrequency);
+
+  // Compute default element (hydrogen)
+  computeElementalComposition(currentElement);
 }
 
-async function loadElementalCompositionData() {
-  const response = await fetch('/data/elemental_composition.json');
-  if (!response.ok) {
-    throw new Error(`Failed to load elemental_composition.json: ${response.status} ${response.statusText}`);
-  }
-  elementalCompositionData = await response.json();
-}
+// These functions are now deprecated - all data is loaded in loadTissueProperties()
+// Keeping them as stubs for backward compatibility if needed
 
 // Compute elemental composition for current element
 function computeElementalComposition(element) {
   const elementValues = [];
 
-  Object.keys(elementalCompositionData).forEach(tissueName => {
-    const tissueData = elementalCompositionData[tissueName];
-    const value = tissueData.composition[element];
+  Object.keys(tissuePropertiesData).forEach(tissueName => {
+    const tissue = tissuePropertiesData[tissueName];
+    const elemental = tissue.properties.elemental;
+    const value = elemental ? elemental[element] : null;
 
     elementalCompositionByTissueName[tissueName] = value;
 
@@ -354,9 +299,9 @@ function computeRelaxationTimes(fieldStrength, parameter) {
   const relaxationValues = [];
   const key = `${parameter.toLowerCase()}_${fieldStrength.replace('.', '')}`;  // e.g., "t1_15T"
 
-  Object.keys(relaxationTimeData).forEach(tissueName => {
-    const tissueData = relaxationTimeData[tissueName];
-    const value = tissueData[key];
+  Object.keys(tissuePropertiesData).forEach(tissueName => {
+    const tissue = tissuePropertiesData[tissueName];
+    const value = tissue.properties.relaxation ? tissue.properties.relaxation[key] : null;
 
     relaxationTimeByTissueName[tissueName] = value;
 
@@ -377,9 +322,19 @@ function computeElectromagneticProperties(frequency) {
   const conductivityValues = [];
   const permittivityValues = [];
 
-  Object.keys(dielectricPropertiesData).forEach(tissueName => {
-    const tissueData = dielectricPropertiesData[tissueName];
-    const props = calculateElectromagneticProperties(tissueData, frequency);
+  Object.keys(tissuePropertiesData).forEach(tissueName => {
+    const tissue = tissuePropertiesData[tissueName];
+
+    // Skip if no dielectric data
+    if (!tissue.properties.dielectric) {
+      return;
+    }
+
+    const dielectricData = {
+      coleCole: tissue.properties.dielectric.coleCole,
+      lfConductivity: tissue.properties.dielectric.lfConductivity
+    };
+    const props = calculateElectromagneticProperties(dielectricData, frequency);
 
     conductivityByTissueName[tissueName] = props.conductivity;
     permittivityByTissueName[tissueName] = props.permittivity;
@@ -403,9 +358,16 @@ function computeElectromagneticProperties(frequency) {
 function computeAcousticAttenuation(frequency) {
   const attenuationValues = [];
 
-  Object.keys(acousticAttenuationData).forEach(tissueName => {
-    const tissueData = acousticAttenuationData[tissueName];
-    const attenuation = calculateAttenuationConstant(tissueData.attenuation, frequency);
+  Object.keys(tissuePropertiesData).forEach(tissueName => {
+    const tissue = tissuePropertiesData[tissueName];
+
+    // Skip if no acoustic data
+    if (!tissue.properties.acoustic || !tissue.properties.acoustic.attenuation) {
+      return;
+    }
+
+    const attenuationParams = tissue.properties.acoustic.attenuation;
+    const attenuation = calculateAttenuationConstant(attenuationParams, frequency);
 
     attenuationConstantByTissueName[tissueName] = attenuation;
 
@@ -600,12 +562,29 @@ function getDensityColor(tissueName) {
   return [clampedNormalized, clampedNormalized, clampedNormalized];
 }
 
-function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc) {
+function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc, useLog = false) {
   const value = propertyMap[tissueName];
-  if (!value || value <= 0) {
+  if (value === null || value === undefined) {
     return [0.5, 0.5, 0.5];
   }
-  const normalized = (value - minVal) / (maxVal - minVal);
+
+  let normalized;
+  if (useLog) {
+    // Use logarithmic scaling
+    if (value <= 0 || minVal <= 0 || maxVal <= 0) {
+      // Fall back to linear if any values are non-positive
+      normalized = (value - minVal) / (maxVal - minVal);
+    } else {
+      const logValue = Math.log10(value);
+      const logMin = Math.log10(minVal);
+      const logMax = Math.log10(maxVal);
+      normalized = (logValue - logMin) / (logMax - logMin);
+    }
+  } else {
+    // Use linear scaling
+    normalized = (value - minVal) / (maxVal - minVal);
+  }
+
   const clampedNormalized = Math.max(0, Math.min(1, normalized));
   return colormapFunc(clampedNormalized);
 }
@@ -616,9 +595,9 @@ function getTissueColor(filename) {
 
   switch (visualizationMode) {
     case 'density':
-      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap);
+      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true);
     case 'speedOfSound':
-      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
+      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true);
     case 'attenuationConstant':
       return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
     case 'nonlinearityParameter':
@@ -671,7 +650,7 @@ function getTissueColor(filename) {
 // ----------------------------------------------------------------------------
 // Note: stlFiles array is dynamically generated from MIDA_v1.txt in loadTissueColors()
 
-const basePath = '/data/MIDA_v1.0/MIDA_v1_surfaces/';
+const basePath = `${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_surfaces/`;
 let loadedCount = 0;
 
 // Create clipping plane (transverse/axial - horizontal slices)
@@ -689,23 +668,79 @@ function updateLoadingStatus(message) {
   }
 }
 
+// Debug positioning on load
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('=== DEBUG: Element Positioning ===');
+  const renderWrapper = document.getElementById('render-wrapper');
+  const sliderContainer = document.getElementById('slider-container');
+  const colorbarContainer = document.getElementById('colorbar-container');
+  const topBar = document.getElementById('top-bar');
+  const vizModeContainer = document.getElementById('viz-mode-container');
+
+  if (renderWrapper) {
+    const rect = renderWrapper.getBoundingClientRect();
+    console.log('render-wrapper:', {
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+      centerY: rect.top + rect.height / 2
+    });
+  }
+
+  if (sliderContainer) {
+    const rect = sliderContainer.getBoundingClientRect();
+    const styles = window.getComputedStyle(sliderContainer);
+    console.log('slider-container:', {
+      top: rect.top,
+      left: rect.left,
+      height: rect.height,
+      cssTop: styles.top,
+      centerY: rect.top + rect.height / 2
+    });
+  }
+
+  if (colorbarContainer) {
+    const rect = colorbarContainer.getBoundingClientRect();
+    const styles = window.getComputedStyle(colorbarContainer);
+    console.log('colorbar-container:', {
+      top: rect.top,
+      right: styles.right,
+      height: rect.height,
+      cssTop: styles.top
+    });
+  }
+
+  if (topBar) {
+    const rect = topBar.getBoundingClientRect();
+    console.log('top-bar:', {
+      height: rect.height,
+      bottom: rect.bottom
+    });
+  }
+
+  if (vizModeContainer) {
+    const rect = vizModeContainer.getBoundingClientRect();
+    console.log('viz-mode-container:', {
+      top: rect.top,
+      height: rect.height,
+      bottom: rect.bottom
+    });
+  }
+
+  console.log('body padding-top:', window.getComputedStyle(document.body).paddingTop);
+  console.log('=================================');
+});
+
+
 async function loadAllData() {
   try {
-    // Load tissue colors, density, and dielectric data
+    // Load tissue colors and unified properties database
     updateLoadingStatus('Loading model...');
     await loadTissueColors();
 
     updateLoadingStatus('Loading properties...');
-    await loadDensityData();
-    await loadDielectricProperties();
-    await loadAcousticAttenuationData();
-    await loadNonlinearityParameterData();
-    await loadRelaxationTimeData();
-    await loadWaterContentData();
-    await loadElementalCompositionData();
-
-    // Compute default element (hydrogen)
-    computeElementalComposition(currentElement);
+    await loadTissueProperties();
   } catch (error) {
     console.error('Error loading data files:', error);
 
@@ -766,7 +801,6 @@ async function loadAllData() {
       if (loadedCount === stlFiles.length) {
         // Get bounds of STL data to align with voxel data
         const stlBounds = renderer.computeVisiblePropBounds();
-        // console.log('STL bounds:', stlBounds);
         loadVoxelSlice(stlBounds);
       }
     }).catch((error) => {
@@ -824,13 +858,14 @@ function loadVoxelSlice(bounds) {
   updateLoadingStatus('Loading model...');
   const voxelReader = vtkXMLImageDataReader.newInstance();
 
-  voxelReader.setUrl('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.vti').then(() => {
-    console.log('Voxel reader promise resolved');
+  voxelReader.setUrl(`${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
+    // Parse the data
+    return voxelReader.loadData();
+  }).then(() => {
     let rawVoxelData;
 
     try {
       rawVoxelData = voxelReader.getOutputData();
-      console.log('Raw voxel data:', rawVoxelData);
     } catch (error) {
       console.error('Error getting voxel output data:', error);
       alert('Memory allocation error loading voxel data. Try closing other browser tabs and refreshing.');
@@ -874,16 +909,11 @@ function loadVoxelSlice(bounds) {
     // The VTI file should already have correct spacing (0.0005m = 0.5mm per voxel)
     // Verify and log the spacing
     const voxelBounds = voxelData.getBounds();
-    // console.log('STL bounds:', stlBounds);
-    // console.log('Voxel data spacing:', voxelData.getSpacing());
-    // console.log('Voxel data origin:', voxelData.getOrigin());
-    // console.log('Voxel data bounds:', voxelBounds);
 
     // Calculate offset to align voxel coordinate system with STL coordinate system
     yOffset = stlBounds[2] - voxelBounds[2]; // Align min Y values
     const xOffset = stlBounds[0] - voxelBounds[0]; // Align min X values
     const zOffset = stlBounds[4] - voxelBounds[4]; // Align min Z values
-    // console.log('Offsets to align coordinate systems - X:', xOffset, 'Y:', yOffset, 'Z:', zOffset);
 
     // Calculate centers for rotation
     const voxelCenterX = (voxelBounds[0] + voxelBounds[1]) / 2;
@@ -892,8 +922,6 @@ function loadVoxelSlice(bounds) {
     const stlCenterX = (stlBounds[0] + stlBounds[1]) / 2;
     const stlCenterY = (stlBounds[2] + stlBounds[3]) / 2;
     const stlCenterZ = (stlBounds[4] + stlBounds[5]) / 2;
-    // console.log('Voxel center:', voxelCenterX, voxelCenterY, voxelCenterZ);
-    // console.log('STL center:', stlCenterX, stlCenterY, stlCenterZ);
 
     // Create color transfer function for voxel data
     voxelColorTransferFunction = vtkColorTransferFunction.newInstance();
@@ -929,8 +957,6 @@ function loadVoxelSlice(bounds) {
     const xManualOffset = 1; // Adjust this value to fine-tune X alignment
     const zManualOffset = 2; // Adjust this value to fine-tune Z alignment
 
-    // console.log('Auto-calculated adjustments - xAdjust:', xAdjust, 'zAdjust:', zAdjust);
-    // console.log('Manual offsets - xManualOffset:', xManualOffset, 'zManualOffset:', zManualOffset);
 
     // Set the origin to STL center in local coordinates (relative to voxel data)
     // STL center in world space - voxel offset = STL center in voxel local space
@@ -999,9 +1025,21 @@ function loadVoxelSlice(bounds) {
     const sliderContainer = document.getElementById('slider-container');
     const resetButton = document.getElementById('reset-camera-btn');
 
-    if (vizModeContainer) vizModeContainer.style.opacity = '1';
+    console.log('DEBUG: Setting UI element opacity to 1');
+    console.log('vizModeContainer:', vizModeContainer);
+    console.log('vizModeContainer position:', vizModeContainer ? vizModeContainer.getBoundingClientRect() : 'not found');
+    console.log('resetButton:', resetButton);
+    console.log('resetButton position:', resetButton ? resetButton.getBoundingClientRect() : 'not found');
+
+    if (vizModeContainer) {
+      vizModeContainer.style.opacity = '1';
+      console.log('Set vizModeContainer opacity to 1, computed style:', window.getComputedStyle(vizModeContainer).opacity);
+    }
     if (sliderContainer) sliderContainer.style.opacity = '1';
-    if (resetButton) resetButton.style.opacity = '1';
+    if (resetButton) {
+      resetButton.style.opacity = '1';
+      console.log('Set resetButton opacity to 1, computed style:', window.getComputedStyle(resetButton).opacity);
+    }
 
     // Set up slider control
     const slider = document.getElementById('depth-slider');
@@ -1076,12 +1114,11 @@ function loadVoxelSlice(bounds) {
       });
     }
 
-    // Set up frequency compute button
-    const computeFrequencyBtn = document.getElementById('compute-frequency-btn');
+    // Set up frequency input auto-update
     const frequencyInput = document.getElementById('frequency-input');
     const frequencyUnit = document.getElementById('frequency-unit');
 
-    if (computeFrequencyBtn && frequencyInput && frequencyUnit) {
+    if (frequencyInput && frequencyUnit) {
       // Validate numeric input only
       frequencyInput.addEventListener('input', (event) => {
         const value = event.target.value;
@@ -1092,7 +1129,8 @@ function loadVoxelSlice(bounds) {
         }
       });
 
-      computeFrequencyBtn.addEventListener('click', () => {
+      // Function to handle frequency updates
+      const updateFrequency = () => {
         const inputValue = frequencyInput.value.trim();
 
         // Check if empty
@@ -1137,25 +1175,22 @@ function loadVoxelSlice(bounds) {
         if (visualizationMode === 'conductivity' || visualizationMode === 'permittivity' || visualizationMode === 'attenuationConstant') {
           setVisualizationMode(visualizationMode);
         }
+      };
 
-        console.log(`Computed frequency-dependent properties at ${formatFrequency(frequency)}`);
-      });
+      // Auto-update on input change (when user finishes typing and field loses focus)
+      frequencyInput.addEventListener('change', updateFrequency);
 
-      // Allow Enter key to compute
-      frequencyInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-          computeFrequencyBtn.click();
-        }
-      });
+      // Auto-update on unit change
+      frequencyUnit.addEventListener('change', updateFrequency);
     }
 
-    // Set up relaxation time controls
-    const displayRelaxationBtn = document.getElementById('display-relaxation-btn');
+    // Set up relaxation time controls with auto-update
     const fieldStrengthSelect = document.getElementById('field-strength-select');
     const relaxationParameterSelect = document.getElementById('relaxation-parameter-select');
 
-    if (displayRelaxationBtn && fieldStrengthSelect && relaxationParameterSelect) {
-      displayRelaxationBtn.addEventListener('click', () => {
+    if (fieldStrengthSelect && relaxationParameterSelect) {
+      // Function to handle relaxation time updates
+      const updateRelaxationTime = () => {
         currentFieldStrength = fieldStrengthSelect.value;
         currentRelaxationParameter = relaxationParameterSelect.value;
 
@@ -1166,17 +1201,21 @@ function loadVoxelSlice(bounds) {
         if (visualizationMode === 'relaxationTime') {
           setVisualizationMode('relaxationTime');
         }
+      };
 
-        console.log(`Computed relaxation times for ${currentFieldStrength} ${currentRelaxationParameter}`);
-      });
+      // Auto-update on field strength change
+      fieldStrengthSelect.addEventListener('change', updateRelaxationTime);
+
+      // Auto-update on relaxation parameter change
+      relaxationParameterSelect.addEventListener('change', updateRelaxationTime);
     }
 
-    // Set up element composition controls
-    const displayElementBtn = document.getElementById('display-element-btn');
+    // Set up element composition controls with auto-update
     const elementSelect = document.getElementById('element-select');
 
-    if (displayElementBtn && elementSelect) {
-      displayElementBtn.addEventListener('click', () => {
+    if (elementSelect) {
+      // Auto-update on element change
+      elementSelect.addEventListener('change', () => {
         currentElement = elementSelect.value;
 
         // Compute elemental composition for selected element
@@ -1186,10 +1225,11 @@ function loadVoxelSlice(bounds) {
         if (visualizationMode === 'elementalComposition') {
           setVisualizationMode('elementalComposition');
         }
-
-        console.log(`Computed elemental composition for ${currentElement}`);
       });
     }
+  }).catch((error) => {
+    console.error('Failed to load voxel data:', error);
+    alert('Failed to load 3D model data. Please refresh the page and try again.');
   });
 }
 
@@ -1389,6 +1429,7 @@ function drawColorbar(mode) {
 
   if (mode !== 'default') {
     const numTicks = 7;
+    const useLogScale = (mode === 'density' || mode === 'speedOfSound');
 
     for (let i = 0; i < numTicks; i++) {
       const pos = i / (numTicks - 1); // 0 to 1
@@ -1399,21 +1440,43 @@ function drawColorbar(mode) {
       tick.style.top = `${pos * height}px`;
       tickContainer.appendChild(tick);
 
-      // Add label with linear spacing
+      // Add label with linear or logarithmic spacing
       const label = document.createElement('div');
       label.className = 'colorbar-tick';
-      const value = maxVal - (pos * (maxVal - minVal));
+      let value;
+      if (useLogScale && minVal > 0 && maxVal > 0) {
+        // Logarithmic spacing
+        const logMin = Math.log10(minVal);
+        const logMax = Math.log10(maxVal);
+        const logValue = logMax - (pos * (logMax - logMin));
+        value = Math.pow(10, logValue);
+      } else {
+        // Linear spacing
+        value = maxVal - (pos * (maxVal - minVal));
+      }
 
-      // Use scientific notation for conductivity and permittivity if values are small
-      if ((mode === 'conductivity' || mode === 'permittivity') && Math.abs(value) < 1) {
-        label.textContent = value.toExponential(1);
+      // Default formatting logic: use scientific notation for small values
+      if (Math.abs(value) < 0.01 && value !== 0) {
+        // Very small values: always use scientific notation
+        label.textContent = value.toExponential(2);
+      } else if (Math.abs(value) < 10 && (value % 1 !== 0)) {
+        // Small non-integer values: use appropriate decimal places or scientific notation
+        const decimalPlaces = Math.abs(value) < 1 ? 3 : 2;
+        label.textContent = value.toFixed(decimalPlaces);
       } else if (mode === 'elementalComposition') {
-        // Use exponential notation for elemental composition
+        // Always use exponential notation for elemental composition
         label.textContent = value.toExponential(2);
       } else if (mode === 'nonlinearityParameter') {
         // Show 2 decimal places for nonlinearity parameter (B/A)
         label.textContent = value.toFixed(2);
+      } else if (Math.abs(value) >= 10000) {
+        // Very large values: use scientific notation
+        label.textContent = value.toExponential(2);
+      } else if (Math.abs(value) >= 1000) {
+        // Large values: use comma-separated format for readability
+        label.textContent = Math.round(value).toLocaleString();
       } else {
+        // Default: round to nearest integer
         label.textContent = Math.round(value);
       }
 
@@ -1437,31 +1500,19 @@ function debugRenderPosition() {
   const pageCenterX = pageWidth / 2;
   const offset = centerX - pageCenterX;
 
-  console.log('=== Render Element Position Debug ===');
-  console.log(`Page width: ${pageWidth}px`);
-  console.log(`Page center X: ${pageCenterX}px`);
-  console.log(`Render element center X: ${centerX.toFixed(2)}px`);
-  console.log(`Render element center Y: ${centerY.toFixed(2)}px`);
-  console.log(`Offset from page center: ${offset.toFixed(2)}px ${offset > 0 ? '(right)' : '(left)'}`);
-  console.log(`Render element: top=${renderRect.top.toFixed(2)}px, height=${renderRect.height}px`);
 
   if (colorbar) {
     const colorbarRect = colorbar.getBoundingClientRect();
     const colorbarCenterY = colorbarRect.top + colorbarRect.height / 2;
     const yOffset = colorbarCenterY - centerY;
-    console.log(`Colorbar center Y: ${colorbarCenterY.toFixed(2)}px`);
-    console.log(`Colorbar Y offset from render center: ${yOffset.toFixed(2)}px ${yOffset > 0 ? '(below)' : '(above)'}`);
   }
 
   if (slider) {
     const sliderRect = slider.getBoundingClientRect();
     const sliderCenterY = sliderRect.top + sliderRect.height / 2;
     const yOffset = sliderCenterY - centerY;
-    console.log(`Slider center Y: ${sliderCenterY.toFixed(2)}px`);
-    console.log(`Slider Y offset from render center: ${yOffset.toFixed(2)}px ${yOffset > 0 ? '(below)' : '(above)'}`);
   }
 
-  console.log('====================================');
 }
 
 // Function to switch visualization modes
