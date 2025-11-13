@@ -124,7 +124,7 @@ let minElementalComposition = Infinity;
 let maxElementalComposition = -Infinity;
 
 async function loadTissueColors() {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt`);
+  const response = await fetch(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.txt`);
   if (!response.ok) {
     throw new Error(`Failed to load MIDA_v1.txt: ${response.status} ${response.statusText}`);
   }
@@ -690,7 +690,7 @@ function getTissueColor(filename) {
 // ----------------------------------------------------------------------------
 // Note: stlFiles array is dynamically generated from MIDA_v1.txt in loadTissueColors()
 
-const basePath = `${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_surfaces/`;
+const basePath = `${import.meta.env.BASE_URL}data/MIDA_v1_surfaces/`;
 let loadedCount = 0;
 
 // Create clipping plane (transverse/axial - horizontal slices)
@@ -1005,7 +1005,7 @@ function loadVoxelSlice(bounds) {
   updateLoadingStatus('Loading model...');
   const voxelReader = vtkXMLImageDataReader.newInstance();
 
-  voxelReader.setUrl(`${import.meta.env.BASE_URL}data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
+  voxelReader.setUrl(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
     // Parse the data
     return voxelReader.loadData();
   }).then(() => {

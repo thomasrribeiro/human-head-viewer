@@ -213,7 +213,7 @@ const ctfun = vtkColorTransferFunction.newInstance();
 const ofun = vtkPiecewiseFunction.newInstance();
 
 // Load the VTI file
-reader.setUrl('/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.vti').then(() => {
+reader.setUrl('/data/MIDA_v1_voxels/MIDA_v1.vti').then(() => {
   const data = reader.getOutputData();
   const { dataRange, remappedCount } = remapBackgroundVoxels(data);
   const minValue = dataRange[0];

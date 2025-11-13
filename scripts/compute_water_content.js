@@ -3,7 +3,7 @@ const path = require('path');
 
 
 const databasePath = '/Users/thomasribeiro/Documents/tissue_database/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt';
-const midaPath = '/Users/thomasribeiro/code/human-head-viewer/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt';
+const midaPath = '/Users/thomasribeiro/code/human-head-viewer/data/MIDA_v1_voxels/MIDA_v1.txt';
 const outputPath = '/Users/thomasribeiro/code/human-head-viewer/data/water_content.json';
 
 // Read database file

@@ -4,7 +4,7 @@ const path = require('path');
 
 const elementalDbPath = '/Users/thomasribeiro/code/human-head-viewer/data/Database-V5-0/Elemental_Composition_database V5.0(ASCII).txt';
 const thermalDbPath = '/Users/thomasribeiro/Documents/tissue_database/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt';
-const midaPath = '/Users/thomasribeiro/code/human-head-viewer/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt';
+const midaPath = '/Users/thomasribeiro/code/human-head-viewer/data/MIDA_v1_voxels/MIDA_v1.txt';
 const outputPath = '/Users/thomasribeiro/code/human-head-viewer/data/elemental_composition.json';
 
 // Element list from the header
