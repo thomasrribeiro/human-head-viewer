@@ -1,6 +1,6 @@
 :root {
-  --render-width: 280px;
-  --render-height: 550px;
+  --render-width: min(50vw, 400px);
+  --render-height: min(80vw, 650px);
 }
 body {
   margin: 0;
