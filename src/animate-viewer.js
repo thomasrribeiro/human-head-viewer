@@ -65,14 +65,27 @@ async function loadTissueColors() {
       return;
     }
 
-    const stlFilename = name.replace(/\//g, '_') + '.stl';
+    // These specific tissues have a space before .stl in their filenames
+    const tissuesWithSpaceBeforeExtension = [
+      'Hypophysis or Pituitary Gland',
+      'Skull Outer Table',
+      'Eye Vitreous',
+      'Muscle - Sternocleidomastoid',
+      'Muscle - Zygomaticus Major',
+      'Cranial Nerve XI - Accessory',
+      'Cranial Nerve XII - Hypoglossal'
+    ];
+
+    const baseName = name.replace(/\//g, '_');
+    const needsSpace = tissuesWithSpaceBeforeExtension.includes(name);
+    const stlFilename = baseName + (needsSpace ? ' .stl' : '.stl');
     stlFiles.push(stlFilename);
   });
 
 }
 
 function getTissueColor(filename) {
-  const tissueName = filename.replace('.stl', '').replace(/_/g, '/');
+  const tissueName = filename.replace(/ ?\.stl$/, '').replace(/_/g, '/');
   return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
 }
 

@@ -155,11 +155,25 @@ async function loadTissueColors() {
     // Handle special cases:
     // - Replace all slashes with underscores (e.g., "Eye Retina/Choroid/Sclera" -> "Eye Retina_Choroid_Sclera")
     // - Skip "Background" as it has no corresponding STL file
+    // - Some files have a space before .stl extension
     if (name === 'Background') {
       return; // Skip background - no STL file exists
     }
 
-    const stlFilename = name.replace(/\//g, '_') + '.stl';
+    // These specific tissues have a space before .stl in their filenames
+    const tissuesWithSpaceBeforeExtension = [
+      'Hypophysis or Pituitary Gland',
+      'Skull Outer Table',
+      'Eye Vitreous',
+      'Muscle - Sternocleidomastoid',
+      'Muscle - Zygomaticus Major',
+      'Cranial Nerve XI - Accessory',
+      'Cranial Nerve XII - Hypoglossal'
+    ];
+
+    const baseName = name.replace(/\//g, '_');
+    const needsSpace = tissuesWithSpaceBeforeExtension.includes(name);
+    const stlFilename = baseName + (needsSpace ? ' .stl' : '.stl');
     stlFiles.push(stlFilename);
   });
 
@@ -644,9 +658,9 @@ function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc,
 }
 
 function getTissueColor(filename) {
-  // Strip .stl extension and look up by tissue name
+  // Strip .stl extension (including possible space before it) and look up by tissue name
   // Replace all underscores with slashes to match original tissue names
-  const tissueName = filename.replace('.stl', '').replace(/_/g, '/');
+  const tissueName = filename.replace(/ ?\.stl$/, '').replace(/_/g, '/');
 
   switch (visualizationMode) {
     case 'density':
