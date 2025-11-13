@@ -1611,9 +1611,6 @@ function setVisualizationMode(mode) {
     colorbarContainer.classList.remove('visible');
   }
 
-  // Debug position after colorbar visibility changes
-  setTimeout(debugRenderPosition, 350); // Wait for transition to complete
-
   // Update STL surface colors
   Object.keys(actors).forEach(filename => {
     const actor = actors[filename];
