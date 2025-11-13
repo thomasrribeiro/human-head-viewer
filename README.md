@@ -15,9 +15,17 @@ Interactive human head viewer in the browser.
 
 ### Installation
 
+1. Install dependencies:
 ```bash
 npm install
 ```
+
+2. Obtain MIDA model data:
+   - Visit the [MIDA Model page](https://itis.swiss/virtual-population/regional-human-models/mida-model/)
+   - Request access to the MIDA v1.0 dataset
+   - Once downloaded, place the following folders in the `data/` directory:
+     - `MIDA_v1_surfaces/` (115 STL surface files)
+     - `MIDA_v1_voxels/` (voxel data including MIDA_v1.vti and MIDA_v1.txt)
 
 ### Running the Viewer
 
