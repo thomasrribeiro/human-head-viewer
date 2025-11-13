@@ -152,7 +152,14 @@ async function loadTissueColors() {
     tissueNamesByID[id] = name; // Store ID to name mapping
 
     // Build STL filename from tissue name
-    const stlFilename = name.replace('/', '_') + '.stl';
+    // Handle special cases:
+    // - Replace all slashes with underscores (e.g., "Eye Retina/Choroid/Sclera" -> "Eye Retina_Choroid_Sclera")
+    // - Skip "Background" as it has no corresponding STL file
+    if (name === 'Background') {
+      return; // Skip background - no STL file exists
+    }
+
+    const stlFilename = name.replace(/\//g, '_') + '.stl';
     stlFiles.push(stlFilename);
   });
 
@@ -638,7 +645,8 @@ function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc,
 
 function getTissueColor(filename) {
   // Strip .stl extension and look up by tissue name
-  const tissueName = filename.replace('.stl', '').replace('_', '/');
+  // Replace all underscores with slashes to match original tissue names
+  const tissueName = filename.replace('.stl', '').replace(/_/g, '/');
 
   switch (visualizationMode) {
     case 'density':
@@ -814,9 +822,10 @@ async function loadAllData() {
 
     // Add clipping plane to mapper
     mapper.addClippingPlane(clippingPlane);
-    mappers.push(mapper);
 
     reader.setUrl(basePath + filename).then(() => {
+      // Only add to mappers array and renderer if successfully loaded
+      mappers.push(mapper);
       renderer.addActor(actor);
 
       // Store actor for later updates
@@ -851,17 +860,10 @@ async function loadAllData() {
         loadVoxelSlice(stlBounds);
       }
     }).catch((error) => {
-      console.error(`Failed to load ${filename}:`, error);
+      // Only log errors for debugging, don't show error status for individual files
+      console.warn(`Could not load ${filename} - skipping`);
 
       loadedCount++;
-
-      // Update status to error
-      const statusIndicator = document.getElementById('status-indicator');
-      const statusText = document.getElementById('status-text');
-      if (statusIndicator && statusText) {
-        statusIndicator.className = 'error';
-        statusText.textContent = 'Failed to load';
-      }
 
       // Continue loading if all files are processed (even with errors)
       if (loadedCount === stlFiles.length) {
