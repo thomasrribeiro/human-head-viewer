@@ -233,20 +233,20 @@ async function loadTissueProperties() {
   });
 
   // Calculate percentile bounds for all properties
-  minDensity = calculatePercentile(densityValues, 10);
-  maxDensity = calculatePercentile(densityValues, 90);
-  minHeatCapacity = calculatePercentile(heatCapacityValues, 10);
-  maxHeatCapacity = calculatePercentile(heatCapacityValues, 90);
-  minThermalConductivity = calculatePercentile(thermalConductivityValues, 10);
-  maxThermalConductivity = calculatePercentile(thermalConductivityValues, 90);
-  minHeatTransferRate = calculatePercentile(heatTransferRateValues, 10);
-  maxHeatTransferRate = calculatePercentile(heatTransferRateValues, 90);
-  minHeatGenerationRate = calculatePercentile(heatGenerationRateValues, 10);
-  maxHeatGenerationRate = calculatePercentile(heatGenerationRateValues, 90);
-  minSpeedOfSound = calculatePercentile(speedOfSoundValues, 10);
-  maxSpeedOfSound = calculatePercentile(speedOfSoundValues, 90);
-  minLFConductivity = calculatePercentile(lfConductivityValues, 10);
-  maxLFConductivity = calculatePercentile(lfConductivityValues, 90);
+  minDensity = Math.min(...densityValues);
+  maxDensity = Math.max(...densityValues);
+  minHeatCapacity = Math.min(...heatCapacityValues);
+  maxHeatCapacity = Math.max(...heatCapacityValues);
+  minThermalConductivity = Math.min(...thermalConductivityValues);
+  maxThermalConductivity = Math.max(...thermalConductivityValues);
+  minHeatTransferRate = Math.min(...heatTransferRateValues);
+  maxHeatTransferRate = Math.max(...heatTransferRateValues);
+  minHeatGenerationRate = Math.min(...heatGenerationRateValues);
+  maxHeatGenerationRate = Math.max(...heatGenerationRateValues);
+  minSpeedOfSound = Math.min(...speedOfSoundValues);
+  maxSpeedOfSound = Math.max(...speedOfSoundValues);
+  minLFConductivity = Math.min(...lfConductivityValues);
+  maxLFConductivity = Math.max(...lfConductivityValues);
 
   if (nonlinearityValues.length > 0) {
     minNonlinearityParameter = Math.min(...nonlinearityValues);
@@ -254,8 +254,8 @@ async function loadTissueProperties() {
   }
 
   if (waterValues.length > 0) {
-    minWaterContent = calculatePercentile(waterValues, 10);
-    maxWaterContent = calculatePercentile(waterValues, 90);
+    minWaterContent = Math.min(...waterValues);
+    maxWaterContent = Math.max(...waterValues);
   }
 
   // Compute electromagnetic properties at default frequency
@@ -287,10 +287,10 @@ function computeElementalComposition(element) {
     }
   });
 
-  // Use 10th to 90th percentile bounds
+  // Use full range
   if (elementValues.length > 0) {
-    minElementalComposition = calculatePercentile(elementValues, 10);
-    maxElementalComposition = calculatePercentile(elementValues, 90);
+    minElementalComposition = Math.min(...elementValues);
+    maxElementalComposition = Math.max(...elementValues);
   }
 }
 
@@ -310,10 +310,10 @@ function computeRelaxationTimes(fieldStrength, parameter) {
     }
   });
 
-  // Use 10th to 90th percentile bounds
+  // Use full range
   if (relaxationValues.length > 0) {
-    minRelaxationTime = calculatePercentile(relaxationValues, 10);
-    maxRelaxationTime = calculatePercentile(relaxationValues, 90);
+    minRelaxationTime = Math.min(...relaxationValues);
+    maxRelaxationTime = Math.max(...relaxationValues);
   }
 }
 
@@ -347,11 +347,11 @@ function computeElectromagneticProperties(frequency) {
     }
   });
 
-  // Use 10th to 90th percentile bounds
-  minConductivity = calculatePercentile(conductivityValues, 10);
-  maxConductivity = calculatePercentile(conductivityValues, 90);
-  minPermittivity = calculatePercentile(permittivityValues, 10);
-  maxPermittivity = calculatePercentile(permittivityValues, 90);
+  // Use full range
+  minConductivity = Math.min(...conductivityValues);
+  maxConductivity = Math.max(...conductivityValues);
+  minPermittivity = Math.min(...permittivityValues);
+  maxPermittivity = Math.max(...permittivityValues);
 }
 
 // Compute acoustic attenuation for all tissues at given frequency
@@ -376,9 +376,9 @@ function computeAcousticAttenuation(frequency) {
     }
   });
 
-  // Use 10th to 90th percentile bounds
-  minAttenuationConstant = calculatePercentile(attenuationValues, 10);
-  maxAttenuationConstant = calculatePercentile(attenuationValues, 90);
+  // Use full range
+  minAttenuationConstant = Math.min(...attenuationValues);
+  maxAttenuationConstant = Math.max(...attenuationValues);
 }
 
 // Bone colormap: maps normalized value (0-1) to grayscale bone color
@@ -599,47 +599,47 @@ function getTissueColor(filename) {
     case 'speedOfSound':
       return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true);
     case 'attenuationConstant':
-      return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
+      return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true);
     case 'nonlinearityParameter':
       // Return null for tissues without data (will make them transparent)
       const baValue = nonlinearityParameterByTissueName[tissueName];
       if (baValue === null || baValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap);
+      return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true);
     case 'heatCapacity':
-      return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
+      return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true);
     case 'thermalConductivity':
-      return getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap);
+      return getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true);
     case 'heatTransferRate':
-      return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap);
+      return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true);
     case 'heatGenerationRate':
-      return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
+      return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true);
     case 'conductivity':
-      return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap);
+      return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true);
     case 'permittivity':
-      return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
+      return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true);
     case 'relaxationTime':
       // Return null for tissues without data (will make them transparent)
       const relaxationValue = relaxationTimeByTissueName[tissueName];
       if (relaxationValue === null || relaxationValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
+      return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true);
     case 'waterContent':
       // Return null for tissues without data (will make them transparent)
       const waterValue = waterContentByTissueName[tissueName];
       if (waterValue === null || waterValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap);
+      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true);
     case 'elementalComposition':
       // Return null for tissues without data (will make them transparent)
       const elementValue = elementalCompositionByTissueName[tissueName];
       if (elementValue === null || elementValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap);
+      return getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -835,10 +835,12 @@ function scaleColorbar() {
   const colorbarCanvas = document.getElementById('colorbar');
   const colorbarTickMarks = document.getElementById('colorbar-tick-marks');
   const colorbarTicks = document.getElementById('colorbar-ticks');
+  const colorbarTitle = document.querySelector('.colorbar-title');
+  const sliderContainer = document.getElementById('slider-container');
 
   if (renderWrapper && colorbarCanvas) {
     const renderHeight = renderWrapper.offsetHeight;
-    const colorbarHeight = Math.min(renderHeight * 0.93, 420); // 93% of render height, max 420px
+    const colorbarHeight = renderHeight * 0.814; // 81.4% of render height (46.5% * 1.75)
 
     colorbarCanvas.height = colorbarHeight;
     if (colorbarTickMarks) {
@@ -846,6 +848,25 @@ function scaleColorbar() {
     }
     if (colorbarTicks) {
       colorbarTicks.style.height = colorbarHeight + 'px';
+    }
+    if (colorbarTitle) {
+      colorbarTitle.style.height = colorbarHeight + 'px';
+    }
+
+    // Debug slider positioning
+    if (sliderContainer) {
+      console.log('=== SLIDER DEBUG ===');
+      console.log('Render height:', renderHeight);
+      console.log('Slider container height (CSS var):', sliderContainer.style.height);
+      console.log('Slider container computed height:', sliderContainer.offsetHeight);
+      console.log('Slider container position:', sliderContainer.getBoundingClientRect());
+      console.log('Render wrapper position:', renderWrapper.getBoundingClientRect());
+      const slider = document.getElementById('depth-slider');
+      if (slider) {
+        console.log('Depth slider position:', slider.getBoundingClientRect());
+        console.log('Depth slider computed height:', slider.offsetHeight);
+      }
+      console.log('===================');
     }
 
     // Redraw colorbar with new height if a mode is active
@@ -858,10 +879,14 @@ function scaleColorbar() {
 // Debounced resize handler with render visibility toggle
 let resizeTimeout;
 window.addEventListener('resize', () => {
-  // Hide render wrapper during resize
+  // Hide render wrapper and colorbar during resize
   const renderWrapper = document.getElementById('render-wrapper');
+  const colorbarContainer = document.getElementById('colorbar-container');
   if (renderWrapper) {
     renderWrapper.style.opacity = '0.3';
+  }
+  if (colorbarContainer) {
+    colorbarContainer.style.opacity = '0';
   }
 
   // Clear existing timeout
@@ -886,6 +911,10 @@ window.addEventListener('resize', () => {
         // Restore render wrapper visibility
         if (renderWrapper) {
           renderWrapper.style.opacity = '1';
+        }
+        // Restore colorbar visibility if it was visible
+        if (colorbarContainer && colorbarContainer.classList.contains('visible')) {
+          colorbarContainer.style.opacity = '1';
         }
 
         debugRenderPosition();
@@ -1066,7 +1095,7 @@ function loadVoxelSlice(bounds) {
       // Desktop
       zoomFactor = 1.3;
     }
-    camera.zoom(1);
+    camera.zoom(0.9);
 
     // Move camera position with manual vertical offset
     const position = camera.getPosition();
@@ -1098,6 +1127,9 @@ function loadVoxelSlice(bounds) {
 
     // Enable orientation widget after model is loaded
     orientationWidget.setEnabled(true);
+
+    // Scale colorbar to match render height on initial load
+    scaleColorbar();
 
     // Fade in UI elements after volume is loaded
     const vizModeContainer = document.getElementById('viz-mode-container');
@@ -1256,11 +1288,11 @@ function loadVoxelSlice(bounds) {
         }
       };
 
-      // Auto-update on input change (when user finishes typing and field loses focus)
-      frequencyInput.addEventListener('change', updateFrequency);
-
-      // Auto-update on unit change
-      frequencyUnit.addEventListener('change', updateFrequency);
+      // Add Display button click handler
+      const computeFrequencyBtn = document.getElementById('compute-frequency-btn');
+      if (computeFrequencyBtn) {
+        computeFrequencyBtn.addEventListener('click', updateFrequency);
+      }
     }
 
     // Set up relaxation time controls with auto-update
@@ -1508,7 +1540,7 @@ function drawColorbar(mode) {
 
   if (mode !== 'default') {
     const numTicks = 7;
-    const useLogScale = (mode === 'density' || mode === 'speedOfSound');
+    const useLogScale = true; // Use logarithmic scaling for all properties
 
     for (let i = 0; i < numTicks; i++) {
       const pos = i / (numTicks - 1); // 0 to 1
@@ -1519,7 +1551,7 @@ function drawColorbar(mode) {
       tick.style.top = `${pos * height}px`;
       tickContainer.appendChild(tick);
 
-      // Add label with linear or logarithmic spacing
+      // Add label with logarithmic spacing
       const label = document.createElement('div');
       label.className = 'colorbar-tick';
       let value;
@@ -1530,7 +1562,7 @@ function drawColorbar(mode) {
         const logValue = logMax - (pos * (logMax - logMin));
         value = Math.pow(10, logValue);
       } else {
-        // Linear spacing
+        // Linear spacing (fallback for non-positive values)
         value = maxVal - (pos * (maxVal - minVal));
       }
 
@@ -1644,13 +1676,13 @@ function setVisualizationMode(mode) {
         if (tissueName) {
           switch (mode) {
             case 'density':
-              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap);
+              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true);
               break;
             case 'speedOfSound':
-              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
+              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true);
               break;
             case 'attenuationConstant':
-              rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
+              rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true);
               break;
             case 'nonlinearityParameter':
               // Check if tissue has data
@@ -1658,26 +1690,26 @@ function setVisualizationMode(mode) {
               if (baValue === null || baValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap);
+                rgb = getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true);
               }
               break;
             case 'heatCapacity':
-              rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
+              rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true);
               break;
             case 'thermalConductivity':
-              rgb = getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap);
+              rgb = getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true);
               break;
             case 'heatTransferRate':
-              rgb = getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap);
+              rgb = getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true);
               break;
             case 'heatGenerationRate':
-              rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
+              rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true);
               break;
             case 'conductivity':
-              rgb = getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap);
+              rgb = getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true);
               break;
             case 'permittivity':
-              rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
+              rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true);
               break;
             case 'relaxationTime':
               // Check if tissue has data
@@ -1685,7 +1717,7 @@ function setVisualizationMode(mode) {
               if (relaxationValue === null || relaxationValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
+                rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true);
               }
               break;
             case 'waterContent':
@@ -1694,7 +1726,7 @@ function setVisualizationMode(mode) {
               if (waterValue === null || waterValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap);
+                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true);
               }
               break;
             case 'elementalComposition':
@@ -1703,7 +1735,7 @@ function setVisualizationMode(mode) {
               if (elementValue === null || elementValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap);
+                rgb = getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true);
               }
               break;
             default:

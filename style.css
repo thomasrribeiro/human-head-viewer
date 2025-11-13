@@ -263,10 +263,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
   position: absolute;
   right: -60px;
-  top: 0;
+  top: 50%;
+  transform: translateY(-50%);
   transition: opacity 0.5s ease-in;
 }
 #depth-slider {
@@ -399,7 +401,7 @@ body {
   padding-left: 12px;
 }
 #colorbar-container {
-  z-index: 1000;
+  z-index: 100;
   background: rgba(255, 255, 255, 0.95);
   padding: 0;
   border-radius: 4px;
@@ -410,7 +412,7 @@ body {
   overflow: hidden;
   opacity: 0;
   position: absolute;
-  left: -160px;
+  left: -140px;
   top: 50%;
   transform: translateY(-50%);
 }
@@ -425,15 +427,13 @@ body {
   position: relative;
 }
 #colorbar {
-  width: 25px;
-  height: 420px;
+  width: 12px;
   border: 1px solid #333;
 }
 #colorbar-tick-marks {
   position: absolute;
-  left: 26px;
+  left: 13px;
   top: 0;
-  height: 420px;
   width: 5px;
 }
 .tick-mark {
@@ -447,7 +447,6 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 420px;
   margin-left: 8px;
 }
 .colorbar-tick {
@@ -467,5 +466,4 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 420px;
 }
