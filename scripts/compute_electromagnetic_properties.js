@@ -201,10 +201,6 @@ function validateAt100MHz(tissues, referenceFile) {
   const refContent = fs.readFileSync(referenceFile, 'utf-8');
   const refLines = refContent.split('\n');
 
-  console.log('\nValidation at 100 MHz:');
-  console.log('='.repeat(100));
-  console.log('Tissue'.padEnd(30), 'Ref Perm'.padEnd(15), 'Calc Perm'.padEnd(15), 'Ref Cond'.padEnd(15), 'Calc Cond'.padEnd(15), 'Status');
-  console.log('='.repeat(100));
 
   let matchCount = 0;
   let totalCount = 0;
@@ -229,7 +225,6 @@ function validateAt100MHz(tissues, referenceFile) {
     totalCount++;
 
     if (i < 20 || status === '✗ FAIL') { // Show first 20 or failures
-      console.log(
         tissueName.padEnd(30),
         refPerm.toFixed(4).padEnd(15),
         calc.permittivity.toFixed(4).padEnd(15),
@@ -240,9 +235,6 @@ function validateAt100MHz(tissues, referenceFile) {
     }
   }
 
-  console.log('='.repeat(100));
-  console.log(`Validation: ${matchCount}/${totalCount} tissues matched (< 1% error)`);
-  console.log('='.repeat(100));
 }
 
 // Main execution
@@ -250,28 +242,31 @@ if (require.main === module) {
   const dbPath = path.join(__dirname, '../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
   const refPath = path.join(__dirname, '../data/Database-V5-0/dielectric_properties_100MHz.txt');
 
-  console.log('Parsing dielectric database...');
   const tissues = parseDielectricDatabase(dbPath);
-  console.log(`Loaded ${Object.keys(tissues).length} tissues`);
 
   // Debug one tissue
-  console.log('\nDebug: Brain (Grey Matter) at 100 MHz');
   const brainGrey = tissues['Brain (Grey Matter)'];
-  console.log('Cole-Cole parameters:', JSON.stringify(brainGrey.coleCole, null, 2));
   const result = calculateProperties(brainGrey, 100e6);
-  console.log('Result:', result);
 
   const epsilon = calculateComplexPermittivity(brainGrey.coleCole, 100e6);
-  console.log('Complex permittivity:', epsilon);
-  console.log('');
 
   // Validate at 100 MHz
   validateAt100MHz(tissues, refPath);
 
-  // Export for use in viewer
-  const outputPath = path.join(__dirname, '../data/dielectric_properties.json');
-  fs.writeFileSync(outputPath, JSON.stringify(tissues, null, 2));
-  console.log(`\nDielectric properties database saved to: ${outputPath}`);
+  // Update unified tissue properties file
+  const { loadTissueProperties, getOrCreateTissue, saveTissueProperties } = require('./tissue-properties-helper');
+
+  const tissueProperties = loadTissueProperties();
+
+  Object.entries(tissues).forEach(([tissueName, tissueData]) => {
+    const tissue = getOrCreateTissue(tissueProperties, tissueName, tissueData);
+    tissue.properties.dielectric = {
+      coleCole: tissueData.coleCole,
+      lfConductivity: tissueData.lfConductivity
+    };
+  });
+
+  saveTissueProperties(tissueProperties);
 }
 
 // Export functions for use in viewer

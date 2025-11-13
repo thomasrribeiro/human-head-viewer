@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('Parsing Relaxation Time database...');
 
 const databasePath = '/Users/thomasribeiro/Documents/tissue_database/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt';
 const midaPath = '/Users/thomasribeiro/code/human-head-viewer/data/MIDA_v1.0/MIDA_v1_voxels/MIDA_v1.txt';
@@ -21,23 +20,18 @@ headers.forEach((header, idx) => {
   const trimmed = header.trim();
   if (trimmed.includes('1.5T') && trimmed.includes('T1')) {
     t1_15T_idx = idx;
-    console.log(`Found 1.5T T1 at column ${idx}: "${trimmed}"`);
   }
   if (trimmed.includes('1.5T') && trimmed.includes('T2')) {
     t2_15T_idx = idx;
-    console.log(`Found 1.5T T2 at column ${idx}: "${trimmed}"`);
   }
   if (trimmed.includes('3.0T') && trimmed.includes('T1')) {
     t1_30T_idx = idx;
-    console.log(`Found 3.0T T1 at column ${idx}: "${trimmed}"`);
   }
   if (trimmed.includes('3.0T') && trimmed.includes('T2')) {
     t2_30T_idx = idx;
-    console.log(`Found 3.0T T2 at column ${idx}: "${trimmed}"`);
   }
 });
 
-console.log(`\nColumn indices: 1.5T T1=${t1_15T_idx}, 1.5T T2=${t2_15T_idx}, 3.0T T1=${t1_30T_idx}, 3.0T T2=${t2_30T_idx}\n`);
 
 // Parse tissue data
 const tissues = {};
@@ -94,8 +88,6 @@ for (let i = 3; i < lines.length; i++) {
   });
 }
 
-console.log(`Parsed ${tissueCount} tissue entries (including alternative names)`);
-console.log(`Unique tissues: ${tissueCount}`);
 
 // Load MIDA tissue names to validate
 const midaLines = fs.readFileSync(midaPath, 'utf-8').split('\n');
@@ -112,11 +104,8 @@ for (let i = 1; i < midaLines.length; i++) {
   }
 }
 
-console.log(`\nLoading MIDA tissue names...`);
-console.log(`Found ${midaTissueNames.length} MIDA tissues`);
 
 // Validate MIDA tissues
-console.log('\n=== MIDA Tissue Validation ===\n');
 
 let mappedCount = 0;
 let missingCount = 0;
@@ -149,35 +138,32 @@ midaTissueNames.forEach(tissueName => {
 // Manual fixes
 if (tissues['Air']) {
   tissues['Background'] = tissues['Air'];
-  console.log('Manual fix: Mapped Background → Air');
 }
 
 if (tissues['Eye (Sclera)']) {
   tissues['Eye Retina/Choroid/Sclera'] = tissues['Eye (Sclera)'];
-  console.log('Manual fix: Mapped Eye Retina/Choroid/Sclera → Eye (Sclera)');
 }
 
-console.log('\n=== Summary ===');
-console.log(`Total MIDA tissues: ${midaTissueNames.length}`);
-console.log(`Mapped: ${mappedCount} (${(mappedCount/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`With 1.5T T1 data: ${withData_15T_T1} (${(withData_15T_T1/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`With 1.5T T2 data: ${withData_15T_T2} (${(withData_15T_T2/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`With 3.0T T1 data: ${withData_30T_T1} (${(withData_30T_T1/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`With 3.0T T2 data: ${withData_30T_T2} (${(withData_30T_T2/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`Without any data (will be transparent): ${tissuesWithoutData.length} (${(tissuesWithoutData.length/midaTissueNames.length*100).toFixed(1)}%)`);
-console.log(`Missing from database: ${missingCount}`);
 
 if (tissuesWithoutData.length > 0) {
-  console.log('\nTissues without any relaxation time data (will be transparent):');
-  tissuesWithoutData.forEach(name => console.log(`  - ${name}`));
 }
 
 if (missingTissues.length > 0) {
-  console.log('\nMissing MIDA tissues:');
-  missingTissues.forEach(name => console.log(`  - ${name}`));
 }
 
-// Save to JSON
-console.log(`\nSaving to ${outputPath}...`);
-fs.writeFileSync(outputPath, JSON.stringify(tissues, null, 2));
-console.log('Done!');
+// Update unified tissue properties file
+const { loadTissueProperties, getOrCreateTissue, saveTissueProperties } = require('./tissue-properties-helper');
+
+const tissueProperties = loadTissueProperties();
+
+Object.entries(tissues).forEach(([tissueName, tissueData]) => {
+  const tissue = getOrCreateTissue(tissueProperties, tissueName, tissueData);
+  tissue.properties.relaxation = {
+    t1_15T: tissueData.t1_15T,
+    t2_15T: tissueData.t2_15T,
+    t1_30T: tissueData.t1_30T,
+    t2_30T: tissueData.t2_30T
+  };
+});
+
+saveTissueProperties(tissueProperties);

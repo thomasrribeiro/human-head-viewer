@@ -4,455 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Human Head Viewer</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100vh;
-      min-height: 0;
-      padding-top: 40px;
-    }
-    #top-bar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 40px;
-      background: rgba(255, 255, 255, 0.95);
-      display: flex;
-      align-items: center;
-      padding: 0 10px;
-      z-index: 3000;
-    }
-    .back-link {
-      color: #D4AF37;
-      text-decoration: none;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 14px;
-      padding: 6px 12px;
-      border-radius: 3px;
-      transition: opacity 0.2s ease;
-    }
-    .back-link:hover {
-      opacity: 0.7;
-    }
-    #viz-mode-container {
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px;
-      padding-bottom: 30px;
-      border-radius: 4px;
-      z-index: 1000;
-      position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 0px;
-      width: 600px;
-    }
-    #frequency-controls {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      margin-left: 30px;
-    }
-    #frequency-controls.visible {
-      display: flex;
-    }
-    #frequency-input {
-      width: 80px;
-      padding: 4px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    #frequency-unit {
-      padding: 4px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      background: white;
-      cursor: pointer;
-    }
-    #compute-frequency-btn {
-      padding: 4px 12px;
-      background: #0066cc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #compute-frequency-btn:hover {
-      background: #0052a3;
-    }
-    #frequency-label {
-      color: #666;
-      font-size: 13px;
-    }
-    #relaxation-time-controls {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      margin-left: 30px;
-    }
-    #relaxation-time-controls.visible {
-      display: flex;
-    }
-    #field-strength-select, #relaxation-parameter-select {
-      padding: 4px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      background: white;
-      cursor: pointer;
-    }
-    #display-relaxation-btn {
-      padding: 4px 12px;
-      background: #0066cc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #display-relaxation-btn:hover {
-      background: #0052a3;
-    }
-    #element-controls {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      margin-left: 30px;
-    }
-    #element-controls.visible {
-      display: flex;
-    }
-    #element-select {
-      padding: 4px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      background: white;
-      cursor: pointer;
-    }
-    #display-element-btn {
-      padding: 4px 12px;
-      background: #0066cc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #display-element-btn:hover {
-      background: #0052a3;
-    }
-    #controls-and-render {
-      position: relative;
-      width: 100%;
-      flex: 1;
-      min-height: 0;
-    }
-    #render-wrapper {
-      position: relative;
-      width: 600px;
-      height: 450px;
-    }
-    #viz-and-render {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0px;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      top: 40px;
-    }
-    #reset-camera-btn {
-      margin-left: 10px;
-      width: 30px;
-      height: 30px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s, opacity 0.5s ease-in;
-      padding: 0;
-      z-index: 1000;
-    }
-    #reset-camera-btn:hover {
-      background: rgba(255, 255, 255, 1);
-      border-color: #999;
-    }
-    #reset-camera-btn svg {
-      width: 24px;
-      height: 24px;
-    }
-    #loading-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: Arial, sans-serif;
-      font-size: 13px;
-      color: #666;
-      font-style: italic;
-      margin-left: auto;
-      margin-right: 10px;
-    }
-    #tissue-tooltip {
-      position: fixed;
-      background: rgba(0, 0, 0, 0.85);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      pointer-events: none;
-      z-index: 3000;
-      display: none;
-      white-space: nowrap;
-    }
-    #status-indicator {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background-color: #fbbf24; /* yellow for loading */
-    }
-    #status-indicator.loading {
-      background-color: #fbbf24; /* yellow */
-    }
-    #status-indicator.loaded {
-      background-color: #10b981; /* green */
-    }
-    #status-indicator.error {
-      background-color: #ef4444; /* red */
-    }
-    #slider-container {
-      height: 450px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      z-index: 1000;
-      position: absolute;
-      left: calc(50% + 300px + 40px);
-      top: 100px;
-      transition: opacity 0.5s ease-in;
-    }
-    #depth-slider {
-      writing-mode: vertical-lr;
-      direction: rtl;
-      width: 8px;
-      height: 66.67%;
-      background: #ddd;
-      outline: none;
-      opacity: 0.7;
-      transition: opacity 0.2s;
-      margin-top: 100px;
-    }
-    #depth-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 12px;
-      height: 12px;
-      background: #666;
-      cursor: pointer;
-      border-radius: 50%;
-    }
-    #depth-slider::-moz-range-thumb {
-      width: 12px;
-      height: 12px;
-      background: #666;
-      cursor: pointer;
-      border-radius: 50%;
-      border: none;
-    }
-    #depth-slider:hover {
-      opacity: 1;
-    }
-    #viz-mode-container {
-      position: relative;
-      margin-bottom: 10px;
-      transition: opacity 0.5s ease-in;
-      display: flex;
-      align-items: center;
-    }
-    #viz-mode-selector {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 16px;
-      padding: 5px 10px;
-      cursor: pointer;
-      font-family: Arial, sans-serif;
-      color: #333;
-      user-select: none;
-      background: transparent;
-      border: 1px solid #333;
-      border-radius: 4px;
-    }
-    #viz-mode-current {
-      white-space: nowrap;
-    }
-    #viz-mode-selector svg {
-      flex-shrink: 0;
-    }
-    #viz-mode-selector:hover #viz-mode-current {
-      color: #0066cc;
-    }
-    #viz-mode-dropdown {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      z-index: 10000;
-      min-width: 100%;
-      max-height: 400px;
-      overflow-y: auto;
-      overflow-x: hidden;
-      margin-top: 2px;
-    }
-    #viz-mode-dropdown.dropdown-hidden {
-      display: none;
-    }
-    #viz-mode-dropdown::-webkit-scrollbar {
-      width: 8px;
-    }
-    #viz-mode-dropdown::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 0 8px 8px 0;
-    }
-    #viz-mode-dropdown::-webkit-scrollbar-thumb {
-      background: #888;
-      border-radius: 4px;
-    }
-    #viz-mode-dropdown::-webkit-scrollbar-thumb:hover {
-      background: #555;
-    }
-    .dropdown-item {
-      padding: 6px 24px;
-      cursor: pointer;
-      white-space: nowrap;
-      font-size: 16px;
-      color: #333;
-      background: white;
-    }
-    .dropdown-item:first-child {
-      border-radius: 8px 8px 0 0;
-    }
-    .dropdown-item:last-child {
-      border-radius: 0 0 8px 8px;
-    }
-    .dropdown-item:hover {
-      background: #f5f5f5;
-    }
-    .dropdown-group-label {
-      padding: 6px 12px;
-      padding-top: 8px;
-      font-weight: normal;
-      color: #888;
-      background: white;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .dropdown-group-label:first-child {
-      padding-top: 6px;
-    }
-    .dropdown-item[data-value="default"] {
-      padding-left: 12px;
-    }
-    #colorbar-container {
-      z-index: 1000;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 0;
-      border-radius: 4px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 0;
-      overflow: hidden;
-      opacity: 0;
-      position: absolute;
-      right: calc(50% + 300px + 20px);
-      top: 103px;
-    }
-    #colorbar-container.visible {
-      width: 120px;
-      padding: 15px;
-      opacity: 1;
-    }
-    #colorbar-content {
-      display: flex;
-      align-items: stretch;
-      position: relative;
-    }
-    #colorbar {
-      width: 25px;
-      height: 420px;
-      border: 1px solid #333;
-    }
-    #colorbar-tick-marks {
-      position: absolute;
-      left: 26px;
-      top: 0;
-      height: 420px;
-      width: 5px;
-    }
-    .tick-mark {
-      position: absolute;
-      width: 5px;
-      height: 1px;
-      background: #333;
-      left: 0;
-    }
-    #colorbar-ticks {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      height: 420px;
-      margin-left: 8px;
-    }
-    .colorbar-tick {
-      font-family: Arial, sans-serif;
-      font-size: 10px;
-      color: #333;
-      white-space: nowrap;
-    }
-    .colorbar-title {
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      font-weight: normal;
-      color: #333;
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-      margin-right: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 420px;
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="top-bar">
-    <a href="https://thomasrribeiro.github.io/" class="back-link">&lt; back home</a>
+    <div>
+      <h1 id="page-title">Human Head Viewer</h1>
+      <a href="https://thomasrribeiro.github.io/" class="back-link">&lt; back home</a>
+    </div>
     <div id="loading-status">
       <div id="status-indicator" class="loading"></div>
       <span id="status-text">Loading...</span>
@@ -460,16 +20,6 @@
   </div>
   <div id="tissue-tooltip"></div>
   <div id="controls-and-render">
-    <div id="colorbar-container">
-      <div style="display: flex; align-items: center;">
-        <div class="colorbar-title">kg/m³</div>
-        <div id="colorbar-content">
-          <canvas id="colorbar" width="25" height="420"></canvas>
-          <div id="colorbar-tick-marks"></div>
-          <div id="colorbar-ticks"></div>
-        </div>
-      </div>
-    </div>
     <div id="viz-and-render">
       <div id="viz-mode-container" style="opacity: 0;">
         <div id="viz-mode-selector">
@@ -510,7 +60,6 @@
             <option value="1000000" selected>MHz</option>
             <option value="1000000000">GHz</option>
           </select>
-          <button id="compute-frequency-btn">Display</button>
         </div>
         <div id="relaxation-time-controls">
           <select id="field-strength-select">
@@ -521,7 +70,6 @@
             <option value="T1" selected>T1</option>
             <option value="T2">T2</option>
           </select>
-          <button id="display-relaxation-btn">Display</button>
         </div>
         <div id="element-controls">
           <select id="element-select">
@@ -543,13 +91,24 @@
             <option value="zinc">Zinc</option>
             <option value="iodine">Iodine</option>
           </select>
-          <button id="display-element-btn">Display</button>
         </div>
       </div>
-      <div id="render-wrapper"></div>
-    </div>
-    <div id="slider-container" style="opacity: 0;">
-      <input type="range" id="depth-slider" min="0" max="100" value="66.67" orient="vertical">
+      <div id="render-block">
+        <div id="colorbar-container">
+          <div style="display: flex; align-items: center;">
+            <div class="colorbar-title">kg/m³</div>
+            <div id="colorbar-content">
+              <canvas id="colorbar" width="25" height="420"></canvas>
+              <div id="colorbar-tick-marks"></div>
+              <div id="colorbar-ticks"></div>
+            </div>
+          </div>
+        </div>
+        <div id="render-wrapper"></div>
+        <div id="slider-container" style="opacity: 0;">
+          <input type="range" id="depth-slider" min="0" max="100" value="66.67" orient="vertical">
+        </div>
+      </div>
     </div>
   </div>
   <script type="module" src="/src/viewer.js"></script>

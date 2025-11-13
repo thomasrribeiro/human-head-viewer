@@ -15,12 +15,18 @@
   "type": "commonjs",
   "dependencies": {
     "@kitware/vtk.js": "^34.15.0",
-    "mathjs": "^15.1.0",
-    "puppeteer": "^19.0.0",
-    "puppeteer-screen-recorder": "^3.0.6"
+    "mathjs": "^15.1.0"
   },
   "devDependencies": {
     "patch-package": "^8.0.1",
     "vite": "^7.2.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thomasrribeiro/human-head-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thomasrribeiro/human-head-viewer/issues"
+  },
+  "homepage": "https://github.com/thomasrribeiro/human-head-viewer#readme"
 }
