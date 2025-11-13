@@ -21,6 +21,13 @@ import { calculateElectromagneticProperties, parseFrequencyInput, formatFrequenc
 import { calculateAttenuationConstant } from './acoustic.js';
 
 // ----------------------------------------------------------------------------
+// Data source configuration
+// ----------------------------------------------------------------------------
+
+// Get data base URL - uses env variable or falls back to BASE_URL for backwards compatibility
+const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.BASE_URL}data/`;
+
+// ----------------------------------------------------------------------------
 // Standard rendering code setup
 // ----------------------------------------------------------------------------
 
@@ -124,7 +131,7 @@ let minElementalComposition = Infinity;
 let maxElementalComposition = -Infinity;
 
 async function loadTissueColors() {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.txt`);
+  const response = await fetch(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.txt`);
   if (!response.ok) {
     throw new Error(`Failed to load MIDA_v1.txt: ${response.status} ${response.statusText}`);
   }
@@ -175,7 +182,7 @@ function calculateIQRRange(values) {
 
 // Load unified tissue properties JSON file
 async function loadTissueProperties() {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/tissue_properties.json`);
+  const response = await fetch(`${DATA_BASE_URL}tissue_properties.json`);
   if (!response.ok) {
     throw new Error(`Failed to load tissue_properties.json: ${response.status} ${response.statusText}`);
   }
@@ -690,7 +697,7 @@ function getTissueColor(filename) {
 // ----------------------------------------------------------------------------
 // Note: stlFiles array is dynamically generated from MIDA_v1.txt in loadTissueColors()
 
-const basePath = `${import.meta.env.BASE_URL}data/MIDA_v1_surfaces/`;
+const basePath = `${DATA_BASE_URL}MIDA_v1_surfaces/`;
 let loadedCount = 0;
 
 // Create clipping plane (transverse/axial - horizontal slices)
@@ -1005,7 +1012,7 @@ function loadVoxelSlice(bounds) {
   updateLoadingStatus('Loading model...');
   const voxelReader = vtkXMLImageDataReader.newInstance();
 
-  voxelReader.setUrl(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
+  voxelReader.setUrl(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
     // Parse the data
     return voxelReader.loadData();
   }).then(() => {

@@ -16,6 +16,13 @@ import vtkXMLImageDataReader from '@kitware/vtk.js/IO/XML/XMLImageDataReader';
 import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
 
 // ----------------------------------------------------------------------------
+// Data source configuration
+// ----------------------------------------------------------------------------
+
+// Get data base URL - uses env variable or falls back to BASE_URL for backwards compatibility
+const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.BASE_URL}data/`;
+
+// ----------------------------------------------------------------------------
 // Standard rendering code setup
 // ----------------------------------------------------------------------------
 
@@ -35,7 +42,7 @@ let tissueNamesByID = {};
 let stlFiles = [];
 
 async function loadTissueColors() {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.txt`);
+  const response = await fetch(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.txt`);
   const text = await response.text();
   const lines = text.trim().split('\n');
 
@@ -107,7 +114,7 @@ function loadVoxelSlice(bounds) {
 
   const voxelReader = vtkXMLImageDataReader.newInstance();
 
-  voxelReader.setUrl(`${import.meta.env.BASE_URL}data/MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
+  voxelReader.setUrl(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
     const rawVoxelData = voxelReader.getOutputData();
 
     if (!rawVoxelData) {
