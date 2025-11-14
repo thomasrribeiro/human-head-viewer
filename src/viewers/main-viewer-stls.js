@@ -5,8 +5,8 @@ import '@kitware/vtk.js/Rendering/Profiles/Volume';
 import vtkFullScreenRenderWindow from '@kitware/vtk.js/Rendering/Misc/FullScreenRenderWindow';
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
+import vtkSTLReader from '@kitware/vtk.js/IO/Geometry/STLReader';
 import vtkPlane from '@kitware/vtk.js/Common/DataModel/Plane';
-import { loadMergedPLY } from './ply-loader.js';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtkImageSlice from '@kitware/vtk.js/Rendering/Core/ImageSlice';
 import vtkImageMapper from '@kitware/vtk.js/Rendering/Core/ImageMapper';
@@ -17,8 +17,8 @@ import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
 import vtkOrientationMarkerWidget from '@kitware/vtk.js/Interaction/Widgets/OrientationMarkerWidget';
 import vtkAnnotatedCubeActor from '@kitware/vtk.js/Rendering/Core/AnnotatedCubeActor';
 import vtkAxesActor from '@kitware/vtk.js/Rendering/Core/AxesActor';
-import { calculateElectromagneticProperties, parseFrequencyInput, formatFrequency } from './cole-cole.js';
-import { calculateAttenuationConstant } from './acoustic.js';
+import { calculateElectromagneticProperties, parseFrequencyInput, formatFrequency } from '../utils/cole-cole.js';
+import { calculateAttenuationConstant } from '../utils/acoustic.js';
 
 // ----------------------------------------------------------------------------
 // Data source configuration
@@ -26,17 +26,6 @@ import { calculateAttenuationConstant } from './acoustic.js';
 
 // Get data base URL - uses env variable or falls back to BASE_URL for backwards compatibility
 const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.BASE_URL}data/`;
-
-console.log('Environment check:', {
-  VITE_DATA_BASE_URL: import.meta.env.VITE_DATA_BASE_URL,
-  BASE_URL: import.meta.env.BASE_URL,
-  DATA_BASE_URL: DATA_BASE_URL
-});
-
-// Helper function to get file paths - same structure for both dev and production
-function getFilePath(filename) {
-  return `${DATA_BASE_URL}${filename}`;
-}
 
 // ----------------------------------------------------------------------------
 // Standard rendering code setup
@@ -142,7 +131,7 @@ let minElementalComposition = Infinity;
 let maxElementalComposition = -Infinity;
 
 async function loadTissueColors() {
-  const response = await fetch(getFilePath('MIDA_v1_voxels/MIDA_v1.txt'));
+  const response = await fetch(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.txt`);
   if (!response.ok) {
     throw new Error(`Failed to load MIDA_v1.txt: ${response.status} ${response.statusText}`);
   }
@@ -228,7 +217,7 @@ function calculateIQRRange(values) {
 
 // Load unified tissue properties JSON file
 async function loadTissueProperties() {
-  const response = await fetch(getFilePath('tissue_properties.json'));
+  const response = await fetch(`${DATA_BASE_URL}tissue_properties.json`);
   if (!response.ok) {
     throw new Error(`Failed to load tissue_properties.json: ${response.status} ${response.statusText}`);
   }
@@ -768,8 +757,10 @@ function updateLoadingStatus(message) {
 async function loadAllData() {
   try {
     // Load tissue colors and unified properties database
-    updateLoadingStatus('Loading PLY volume...');
+    updateLoadingStatus('Loading model...');
     await loadTissueColors();
+
+    updateLoadingStatus('Loading properties...');
     await loadTissueProperties();
   } catch (error) {
     // Update status to error
@@ -777,40 +768,40 @@ async function loadAllData() {
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
       statusIndicator.className = 'error';
-      statusText.textContent = 'Failed';
+      statusText.textContent = 'Failed to load data files';
     }
     return; // Stop execution if critical data fails to load
   }
 
-  // Load merged PLY file
-  const plyUrl = getFilePath('merged_tissues.ply');
+  updateLoadingStatus('Loading model...');
 
-  loadMergedPLY(plyUrl).then(tissueData => {
-    updateLoadingStatus('Loading voxel slice...');
+  // Then load STL files
+  stlFiles.forEach((filename, index) => {
+    // Extract tissue name for display
+    const tissueName = filename.replace(/ ?\.stl$/, '').replace(/_/g, '/');
 
-    // Create one actor per tissue
-    const tissueActors = {};
-    let tissueCount = 0;
-    const totalTissues = tissueData.size;
+    // Update loading status with tissue name
+    updateLoadingStatus(`Loading ${tissueName}...`);
 
-    tissueData.forEach((polyData, tissueId) => {
-      const tissueName = tissueNamesByID[tissueId];
+    const reader = vtkSTLReader.newInstance();
+    const mapper = vtkMapper.newInstance();
+    const actor = vtkActor.newInstance();
 
-      if (!tissueName) {
-        return;
-      }
+    mapper.setInputConnection(reader.getOutputPort());
+    actor.setMapper(mapper);
 
-      // Create mapper and actor for this tissue
-      const mapper = vtkMapper.newInstance();
-      mapper.setInputData(polyData);
-      mapper.addClippingPlane(clippingPlane);
-      mapper.setScalarVisibility(false);
+    // Add clipping plane to mapper
+    mapper.addClippingPlane(clippingPlane);
 
-      const actor = vtkActor.newInstance();
-      actor.setMapper(mapper);
+    reader.setUrl(basePath + filename).then(() => {
+      // Only add to mappers array and renderer if successfully loaded
+      mappers.push(mapper);
+      renderer.addActor(actor);
 
-      // Get color based on current visualization mode
-      const filename = tissueName.replace(/\//g, '_') + '.stl'; // Convert to filename format for getTissueColor
+      // Store actor for later updates
+      actors[filename] = actor;
+
+      // Assign anatomically correct color based on tissue type
       const rgb = getTissueColor(filename);
 
       const property = actor.getProperty();
@@ -827,27 +818,29 @@ async function loadAllData() {
         property.setOpacity(0.2); // More transparent to see the slice
       }
 
-      renderer.addActor(actor);
-      tissueActors[tissueId] = actor;
-      actors[filename] = actor; // Store with filename key for compatibility
-      mappers.push(mapper);
-      tissueCount++;
+      // Force color mode
+      mapper.setScalarVisibility(false);
+
+      loadedCount++;
+
+      // After all STL files are loaded, load the voxel slice
+      if (loadedCount === stlFiles.length) {
+        // Get bounds of STL data to align with voxel data
+        const stlBounds = renderer.computeVisiblePropBounds();
+        loadVoxelSlice(stlBounds);
+      }
+    }).catch((error) => {
+      // Silently skip files that don't exist (some tissues may not have STL files)
+      loadedCount++;
+
+      // Continue loading if all files are processed (even with errors)
+      if (loadedCount === stlFiles.length) {
+        const stlBounds = renderer.computeVisiblePropBounds();
+        if (stlBounds && stlBounds[0] !== Infinity) {
+          loadVoxelSlice(stlBounds);
+        }
+      }
     });
-
-    // Don't render yet - wait for voxel slice to load so camera is positioned correctly
-    // After PLY is loaded, load voxel slice
-    const stlBounds = renderer.computeVisiblePropBounds();
-    loadVoxelSlice(stlBounds);
-
-  }).catch(error => {
-    console.error('Failed to load PLY file:', error);
-
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
-    if (statusIndicator && statusText) {
-      statusIndicator.className = 'error';
-      statusText.textContent = 'Failed';
-    }
   });
 }
 
@@ -975,11 +968,10 @@ const CAMERA_VERTICAL_OFFSET = 0;
 function loadVoxelSlice(bounds) {
   stlBounds = bounds;
 
+  updateLoadingStatus('Loading model...');
   const voxelReader = vtkXMLImageDataReader.newInstance();
-  const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1.vti');
-  console.log('Loading VTI from:', vtiPath);
 
-  voxelReader.setUrl(vtiPath).then(() => {
+  voxelReader.setUrl(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
     // Parse the data
     return voxelReader.loadData();
   }).then(() => {
@@ -1361,14 +1353,7 @@ function loadVoxelSlice(bounds) {
       });
     }
   }).catch((error) => {
-    console.error('Failed to load voxel data:', error);
-
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
-    if (statusIndicator && statusText) {
-      statusIndicator.className = 'error';
-      statusText.textContent = 'Failed';
-    }
+    alert('Failed to load 3D model data. Please refresh the page and try again.');
   });
 }
 
