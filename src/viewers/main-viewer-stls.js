@@ -939,7 +939,7 @@ function isMobileDevice() {
 // Start loading
 if (isMobileDevice()) {
   const proceed = confirm(
-    'Warning: This 3D viewer requires significant memory (600MB+) and may not work well on mobile devices. ' +
+    'Warning: This 3D viewer requires significant memory (332.39MB) and may not work well on mobile devices. ' +
     'Your device may reload the page if it runs out of memory. Continue anyway?'
   );
   if (proceed) {
