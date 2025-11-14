@@ -932,24 +932,27 @@ window.addEventListener('resize', () => {
 });
 
 // Check if mobile device and warn about memory requirements
-function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
+// Mobile warning commented out - STL files still large but downsampled voxels help
+// function isMobileDevice() {
+//   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+// }
 
-// Start loading
-if (isMobileDevice()) {
-  const proceed = confirm(
-    'Warning: This 3D viewer requires significant memory (332.39MB) and may not work well on mobile devices. ' +
-    'Your device may reload the page if it runs out of memory. Continue anyway?'
-  );
-  if (proceed) {
-    loadAllData();
-  } else {
-    updateLoadingStatus('Mobile device detected - viewer requires desktop browser');
-  }
-} else {
-  loadAllData();
-}
+// Start loading (mobile warning disabled)
+// if (isMobileDevice()) {
+//   const proceed = confirm(
+//     'Warning: This 3D viewer requires significant memory (332.39MB) and may not work well on mobile devices. ' +
+//     'Your device may reload the page if it runs out of memory. Continue anyway?'
+//   );
+//   if (proceed) {
+//     loadAllData();
+//   } else {
+//     updateLoadingStatus('Mobile device detected - viewer requires desktop browser');
+//   }
+// } else {
+//   loadAllData();
+// }
+
+loadAllData();
 
 // ----------------------------------------------------------------------------
 // Load voxelized data for the slice
