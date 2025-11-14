@@ -2,7 +2,7 @@
 
 Interactive human head viewer in the browser. 
 
-<img src="assets/gui.png" alt="User interface">
+<img src="public/screenshots/gui.png" alt="User interface">
 
 *Displays chemical, electromagnetic, mechanical and thermal tissue properties.*
 

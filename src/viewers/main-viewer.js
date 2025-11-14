@@ -782,8 +782,8 @@ async function loadAllData() {
     return; // Stop execution if critical data fails to load
   }
 
-  // Load merged PLY file (gzipped for faster loading)
-  const plyUrl = getFilePath('merged_tissues.ply.gz');
+  // Load merged PLY file (downsampled 2x, uncompressed for testing)
+  const plyUrl = getFilePath('merged_tissues_downsampled_2x.ply');
 
   loadMergedPLY(plyUrl).then(tissueData => {
     updateLoadingStatus('Loading voxel slice...');
@@ -976,7 +976,7 @@ function loadVoxelSlice(bounds) {
   stlBounds = bounds;
 
   const voxelReader = vtkXMLImageDataReader.newInstance();
-  const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1.vti');
+  const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1_downsampled_2x.vti');
   console.log('Loading VTI from:', vtiPath);
 
   voxelReader.setUrl(vtiPath).then(() => {
