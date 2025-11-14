@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Human Head Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="top-bar">
+    <div>
+      <h1 id="page-title">Human Head Viewer</h1>
+      <a href="https://thomasrribeiro.github.io/" class="back-link">&lt; back home</a>
+    </div>
+    <div id="loading-status">
+      <div id="status-indicator" class="loading"></div>
+      <span id="status-text">Loading...</span>
+    </div>
+  </div>
+  <div id="tissue-tooltip"></div>
+  <div id="controls-and-render">
+    <div id="viz-and-render">
+      <div id="viz-mode-container" style="opacity: 0;">
+        <div id="viz-mode-selector">
+          <div id="viz-mode-current">Select Property</div>
+          <svg width="10" height="6" viewBox="0 0 10 6" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="0,0 10,0 5,6" fill="#333"/>
+          </svg>
+          <div id="viz-mode-dropdown" class="dropdown-hidden">
+            <div class="dropdown-item" data-value="default">Select Property</div>
+            <div class="dropdown-group-label">Chemical</div>
+            <div class="dropdown-item" data-value="elementalComposition">Elemental Composition</div>
+            <div class="dropdown-item" data-value="waterContent">Water Content</div>
+            <div class="dropdown-group-label">Electromagnetic</div>
+            <div class="dropdown-item" data-value="conductivity">Conductivity</div>
+            <div class="dropdown-item" data-value="permittivity">Permittivity</div>
+            <div class="dropdown-item" data-value="relaxationTime">Relaxation Time</div>
+            <div class="dropdown-group-label">Mechanical</div>
+            <div class="dropdown-item" data-value="attenuationConstant">Attenuation Constant</div>
+            <div class="dropdown-item" data-value="density">Density</div>
+            <div class="dropdown-item" data-value="nonlinearityParameter">Non-linearity Parameter</div>
+            <div class="dropdown-item" data-value="speedOfSound">Speed of Sound</div>
+            <div class="dropdown-group-label">Thermal</div>
+            <div class="dropdown-item" data-value="heatCapacity">Heat Capacity</div>
+            <div class="dropdown-item" data-value="heatGenerationRate">Heat Generation Rate</div>
+            <div class="dropdown-item" data-value="heatTransferRate">Heat Transfer Rate</div>
+            <div class="dropdown-item" data-value="thermalConductivity">Thermal Conductivity</div>
+          </div>
+        </div>
+        <button id="reset-camera-btn" title="Reset camera" style="opacity: 0;">
+          <img src="/assets/refresh.png" alt="Reset" style="width: 18px; height: 18px;">
+        </button>
+        <div id="frequency-controls">
+          <span id="frequency-label">Frequency:</span>
+          <input type="text" id="frequency-input" value="100" placeholder="e.g., 100">
+          <select id="frequency-unit">
+            <option value="1">Hz</option>
+            <option value="1000">kHz</option>
+            <option value="1000000" selected>MHz</option>
+            <option value="1000000000">GHz</option>
+          </select>
+          <button id="compute-frequency-btn">Display</button>
+        </div>
+        <div id="relaxation-time-controls">
+          <select id="field-strength-select">
+            <option value="1.5T" selected>1.5T</option>
+            <option value="3.0T">3.0T</option>
+          </select>
+          <select id="relaxation-parameter-select">
+            <option value="T1" selected>T1</option>
+            <option value="T2">T2</option>
+          </select>
+        </div>
+        <div id="element-controls">
+          <select id="element-select">
+            <option value="hydrogen" selected>Hydrogen</option>
+            <option value="carbon">Carbon</option>
+            <option value="nitrogen">Nitrogen</option>
+            <option value="oxygen">Oxygen</option>
+            <option value="sodium">Sodium</option>
+            <option value="magnesium">Magnesium</option>
+            <option value="silicon">Silicon</option>
+            <option value="phosphor">Phosphor</option>
+            <option value="sulfur">Sulfur</option>
+            <option value="chlorine">Chlorine</option>
+            <option value="argon">Argon</option>
+            <option value="potassium">Potassium</option>
+            <option value="calcium">Calcium</option>
+            <option value="scandium">Scandium</option>
+            <option value="iron">Iron</option>
+            <option value="zinc">Zinc</option>
+            <option value="iodine">Iodine</option>
+          </select>
+        </div>
+      </div>
+      <div id="render-block">
+        <div id="colorbar-container">
+          <div style="display: flex; align-items: center;">
+            <div class="colorbar-title">kg/m³</div>
+            <div id="colorbar-content">
+              <canvas id="colorbar" width="12" height="420"></canvas>
+              <div id="colorbar-tick-marks"></div>
+              <div id="colorbar-ticks"></div>
+            </div>
+          </div>
+        </div>
+        <div id="render-wrapper"></div>
+        <div id="slider-container" style="opacity: 0;">
+          <input type="range" id="depth-slider" min="0" max="100" value="66.67" orient="vertical">
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/viewer-stls.js"></script>
+</body>
+</html>
