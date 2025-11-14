@@ -4,8 +4,7 @@ node_modules/
 CLAUDE.md
 *.log
 dist/
-merged_tissues.ply
-merged_tissues.ply.gz
+data/
 
 # Large demo videos (optional - uncomment if you don't want them in repo)
 # public/demos/*.mov
