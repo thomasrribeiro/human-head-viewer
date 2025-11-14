@@ -1,0 +1,468 @@
+{
+  "format": "PLY",
+  "compressed": true,
+  "vertexCount": 5470601,
+  "faceCount": 11008306,
+  "tissues": [
+    {
+      "id": 1,
+      "name": "Dura"
+    },
+    {
+      "id": 2,
+      "name": "Cerebellum Gray Matter"
+    },
+    {
+      "id": 3,
+      "name": "Pineal Body"
+    },
+    {
+      "id": 4,
+      "name": "Amygdala"
+    },
+    {
+      "id": 5,
+      "name": "Hippocampus"
+    },
+    {
+      "id": 6,
+      "name": "CSF Ventricles"
+    },
+    {
+      "id": 7,
+      "name": "Caudate Nucleus"
+    },
+    {
+      "id": 8,
+      "name": "Putamen"
+    },
+    {
+      "id": 9,
+      "name": "Cerebellum White Matter"
+    },
+    {
+      "id": 10,
+      "name": "Brain Gray Matter"
+    },
+    {
+      "id": 11,
+      "name": "Brainstem Midbrain"
+    },
+    {
+      "id": 12,
+      "name": "Brain White Matter"
+    },
+    {
+      "id": 13,
+      "name": "Spinal Cord"
+    },
+    {
+      "id": 14,
+      "name": "Brainstem Pons"
+    },
+    {
+      "id": 15,
+      "name": "Brainstem Medulla"
+    },
+    {
+      "id": 16,
+      "name": "Nucleus Accumbens"
+    },
+    {
+      "id": 17,
+      "name": "Globus Pallidus"
+    },
+    {
+      "id": 18,
+      "name": "Optic Tract"
+    },
+    {
+      "id": 19,
+      "name": "Hypophysis or Pituitary Gland"
+    },
+    {
+      "id": 20,
+      "name": "Mammillary Body"
+    },
+    {
+      "id": 21,
+      "name": "Hypothalamus"
+    },
+    {
+      "id": 22,
+      "name": "Commissura (Anterior)"
+    },
+    {
+      "id": 23,
+      "name": "Commissura (Posterior)"
+    },
+    {
+      "id": 24,
+      "name": "Blood Arteries"
+    },
+    {
+      "id": 25,
+      "name": "Blood Veins"
+    },
+    {
+      "id": 26,
+      "name": "Air Internal - Ethmoidal Sinus"
+    },
+    {
+      "id": 27,
+      "name": "Air Internal - Frontal Sinus"
+    },
+    {
+      "id": 28,
+      "name": "Air Internal - Maxillary Sinus"
+    },
+    {
+      "id": 29,
+      "name": "Air Internal - Sphenoidal Sinus"
+    },
+    {
+      "id": 30,
+      "name": "Air Internal - Mastoid"
+    },
+    {
+      "id": 31,
+      "name": "Air Internal - Nasal/Pharynx"
+    },
+    {
+      "id": 32,
+      "name": "CSF General"
+    },
+    {
+      "id": 33,
+      "name": "Ear Cochlea"
+    },
+    {
+      "id": 34,
+      "name": "Ear Semicircular Canals"
+    },
+    {
+      "id": 35,
+      "name": "Ear Auricular Cartilage (Pinna)"
+    },
+    {
+      "id": 36,
+      "name": "Mandible"
+    },
+    {
+      "id": 37,
+      "name": "Mucosa"
+    },
+    {
+      "id": 38,
+      "name": "Muscle (General)"
+    },
+    {
+      "id": 39,
+      "name": "Nasal Septum (Cartilage)"
+    },
+    {
+      "id": 40,
+      "name": "Skull"
+    },
+    {
+      "id": 41,
+      "name": "Teeth"
+    },
+    {
+      "id": 42,
+      "name": "Tongue"
+    },
+    {
+      "id": 43,
+      "name": "Adipose Tissue"
+    },
+    {
+      "id": 44,
+      "name": "Vertebra - C1 (atlas)"
+    },
+    {
+      "id": 45,
+      "name": "Vertebra - C2 (axis)"
+    },
+    {
+      "id": 46,
+      "name": "Vertebra - C3"
+    },
+    {
+      "id": 47,
+      "name": "Vertebra - C4"
+    },
+    {
+      "id": 48,
+      "name": "Vertebra - C5"
+    },
+    {
+      "id": 49,
+      "name": "Intervertebral Discs"
+    },
+    {
+      "id": 51,
+      "name": "Epidermis/Dermis"
+    },
+    {
+      "id": 52,
+      "name": "Skull Diploe"
+    },
+    {
+      "id": 53,
+      "name": "Skull Inner Table"
+    },
+    {
+      "id": 54,
+      "name": "Skull Outer Table"
+    },
+    {
+      "id": 55,
+      "name": "Eye Lens"
+    },
+    {
+      "id": 56,
+      "name": "Eye Retina/Choroid/Sclera"
+    },
+    {
+      "id": 57,
+      "name": "Eye Vitreous"
+    },
+    {
+      "id": 58,
+      "name": "Eye Cornea"
+    },
+    {
+      "id": 59,
+      "name": "Eye Aqueous"
+    },
+    {
+      "id": 60,
+      "name": "Muscle - Platysma"
+    },
+    {
+      "id": 61,
+      "name": "Tendon - Galea Aponeurotica"
+    },
+    {
+      "id": 62,
+      "name": "Subcutaneous Adipose Tissue"
+    },
+    {
+      "id": 63,
+      "name": "Muscle - Temporalis/Temporoparietalis"
+    },
+    {
+      "id": 64,
+      "name": "Muscle - Occipitiofrontalis - Frontal Belly"
+    },
+    {
+      "id": 65,
+      "name": "Muscle - Lateral Pterygoid"
+    },
+    {
+      "id": 66,
+      "name": "Muscle - Masseter"
+    },
+    {
+      "id": 67,
+      "name": "Muscle - Splenius Capitis"
+    },
+    {
+      "id": 68,
+      "name": "Muscle - Sternocleidomastoid"
+    },
+    {
+      "id": 69,
+      "name": "Muscle - Occipitiofrontalis - Occipital Belly"
+    },
+    {
+      "id": 70,
+      "name": "Muscle - Trapezius"
+    },
+    {
+      "id": 71,
+      "name": "Muscle - Mentalis"
+    },
+    {
+      "id": 72,
+      "name": "Muscle - Depressor Anguli Oris"
+    },
+    {
+      "id": 73,
+      "name": "Muscle - Depressor Labii"
+    },
+    {
+      "id": 74,
+      "name": "Muscle - Nasalis"
+    },
+    {
+      "id": 75,
+      "name": "Muscle - Orbicularis Oris"
+    },
+    {
+      "id": 76,
+      "name": "Muscles - Procerus"
+    },
+    {
+      "id": 77,
+      "name": "Muscle - Levator Labii Superioris"
+    },
+    {
+      "id": 78,
+      "name": "Muscle - Zygomaticus Major"
+    },
+    {
+      "id": 79,
+      "name": "Muscle - Orbicularis Oculi"
+    },
+    {
+      "id": 80,
+      "name": "Muscle - Levator Scapulae"
+    },
+    {
+      "id": 81,
+      "name": "Muscle - Medial Pterygoid"
+    },
+    {
+      "id": 82,
+      "name": "Muscle - Zygomaticus Minor"
+    },
+    {
+      "id": 83,
+      "name": "Muscles - Risorius"
+    },
+    {
+      "id": 84,
+      "name": "Muscle - Buccinator"
+    },
+    {
+      "id": 85,
+      "name": "Ear Auditory Canal"
+    },
+    {
+      "id": 86,
+      "name": "Ear Pharyngotympanic Tube"
+    },
+    {
+      "id": 87,
+      "name": "Hyoid Bone"
+    },
+    {
+      "id": 88,
+      "name": "Submandibular Gland"
+    },
+    {
+      "id": 89,
+      "name": "Parotid Gland"
+    },
+    {
+      "id": 90,
+      "name": "Sublingual Gland"
+    },
+    {
+      "id": 91,
+      "name": "Muscle - Superior Rectus"
+    },
+    {
+      "id": 92,
+      "name": "Muscle - Medial Rectus"
+    },
+    {
+      "id": 93,
+      "name": "Muscle - Lateral Rectus"
+    },
+    {
+      "id": 94,
+      "name": "Muscle - Inferior Rectus"
+    },
+    {
+      "id": 95,
+      "name": "Muscle - Superior Oblique"
+    },
+    {
+      "id": 96,
+      "name": "Muscle - Inferior Oblique"
+    },
+    {
+      "id": 97,
+      "name": "Air Internal - Oral Cavity"
+    },
+    {
+      "id": 98,
+      "name": "Tendon - Temporalis Tendon"
+    },
+    {
+      "id": 99,
+      "name": "Substantia Nigra"
+    },
+    {
+      "id": 100,
+      "name": "Cerebral Peduncles"
+    },
+    {
+      "id": 101,
+      "name": "Optic Chiasm"
+    },
+    {
+      "id": 102,
+      "name": "Cranial Nerve I - Olfactory"
+    },
+    {
+      "id": 103,
+      "name": "Cranial Nerve II - Optic"
+    },
+    {
+      "id": 104,
+      "name": "Cranial Nerve III - Oculomotor"
+    },
+    {
+      "id": 105,
+      "name": "Cranial Nerve IV - Trochlear"
+    },
+    {
+      "id": 106,
+      "name": "Cranial Nerve V - Trigeminal"
+    },
+    {
+      "id": 107,
+      "name": "Cranial Nerve V2 - Maxillary Division"
+    },
+    {
+      "id": 108,
+      "name": "Cranial Nerve V3 - Mandibular Division"
+    },
+    {
+      "id": 109,
+      "name": "Cranial Nerve VI - Abducens"
+    },
+    {
+      "id": 110,
+      "name": "Cranial Nerve VII - Facial"
+    },
+    {
+      "id": 111,
+      "name": "Cranial Nerve VIII - Vestibulocochlear"
+    },
+    {
+      "id": 112,
+      "name": "Cranial Nerve IX - Glossopharyngeal"
+    },
+    {
+      "id": 113,
+      "name": "Cranial Nerve X - Vagus"
+    },
+    {
+      "id": 114,
+      "name": "Cranial Nerve XI - Accessory"
+    },
+    {
+      "id": 115,
+      "name": "Cranial Nerve XII - Hypoglossal"
+    },
+    {
+      "id": 116,
+      "name": "Thalamus"
+    }
+  ]
+}
