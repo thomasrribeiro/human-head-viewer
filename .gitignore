@@ -6,3 +6,6 @@ CLAUDE.md
 dist/
 merged_tissues.ply
 merged_tissues.ply.gz
+
+# Large demo videos (optional - uncomment if you don't want them in repo)
+# public/demos/*.mov
