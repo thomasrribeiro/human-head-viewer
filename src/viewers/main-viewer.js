@@ -27,11 +27,11 @@ import { calculateAttenuationConstant } from '../utils/acoustic.js';
 // Get data base URL - uses env variable or falls back to BASE_URL for backwards compatibility
 const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.BASE_URL}data/`;
 
-console.log('Environment check:', {
-  VITE_DATA_BASE_URL: import.meta.env.VITE_DATA_BASE_URL,
-  BASE_URL: import.meta.env.BASE_URL,
-  DATA_BASE_URL: DATA_BASE_URL
-});
+// console.log('Environment check:', {
+//   VITE_DATA_BASE_URL: import.meta.env.VITE_DATA_BASE_URL,
+//   BASE_URL: import.meta.env.BASE_URL,
+//   DATA_BASE_URL: DATA_BASE_URL
+// });
 
 // Helper function to get file paths - same structure for both dev and production
 function getFilePath(filename) {
@@ -119,27 +119,37 @@ let maxThermalConductivity = -Infinity;
 let medianThermalConductivity = 0;
 let minHeatTransferRate = Infinity;
 let maxHeatTransferRate = -Infinity;
+let medianHeatTransferRate = 0;
 let minHeatGenerationRate = Infinity;
 let maxHeatGenerationRate = -Infinity;
+let medianHeatGenerationRate = 0;
 let minSpeedOfSound = Infinity;
 let maxSpeedOfSound = -Infinity;
 let medianSpeedOfSound = 0;
+let meanSpeedOfSound = 0;
 let minLFConductivity = Infinity;
 let maxLFConductivity = -Infinity;
 let minConductivity = Infinity;
 let maxConductivity = -Infinity;
+let medianConductivity = 0;
 let minPermittivity = Infinity;
 let maxPermittivity = -Infinity;
+let medianPermittivity = 0;
 let minAttenuationConstant = Infinity;
 let maxAttenuationConstant = -Infinity;
+let medianAttenuationConstant = 0;
 let minNonlinearityParameter = Infinity;
 let maxNonlinearityParameter = -Infinity;
+let medianNonlinearityParameter = 0;
 let minRelaxationTime = Infinity;
 let maxRelaxationTime = -Infinity;
+let medianRelaxationTime = 0;
 let minWaterContent = Infinity;
 let maxWaterContent = -Infinity;
+let medianWaterContent = 0;
 let minElementalComposition = Infinity;
 let maxElementalComposition = -Infinity;
+let medianElementalComposition = 0;
 
 async function loadTissueColors() {
   const response = await fetch(getFilePath('MIDA_v1_voxels/MIDA_v1.txt'));
@@ -226,6 +236,39 @@ function calculateIQRRange(values) {
   return { min: lowerBound, max: upperBound };
 }
 
+// Helper function to calculate weighted percentile based on voxel counts
+function calculateWeightedPercentile(values, weights, percentile) {
+  if (values.length === 0) return 0;
+
+  // Create array of {value, weight} pairs and sort by value
+  const paired = values.map((v, i) => ({ value: v, weight: weights[i] }))
+    .sort((a, b) => a.value - b.value);
+
+  // Calculate cumulative weights
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  const targetWeight = (percentile / 100) * totalWeight;
+
+  let cumWeight = 0;
+  for (let i = 0; i < paired.length; i++) {
+    cumWeight += paired[i].weight;
+    if (cumWeight >= targetWeight) {
+      return paired[i].value;
+    }
+  }
+
+  return paired[paired.length - 1].value;
+}
+
+// Helper function to calculate weighted mean based on voxel counts
+function calculateWeightedMean(values, weights) {
+  if (values.length === 0) return 0;
+
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  const weightedSum = values.reduce((sum, val, i) => sum + val * weights[i], 0);
+
+  return weightedSum / totalWeight;
+}
+
 // Load unified tissue properties JSON file
 async function loadTissueProperties() {
   const response = await fetch(getFilePath('tissue_properties.json'));
@@ -234,42 +277,84 @@ async function loadTissueProperties() {
   }
   tissuePropertiesData = await response.json();
 
+  // Load VTI file to get voxel counts per tissue
+  const voxelReader = vtkXMLImageDataReader.newInstance();
+  const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1_downsampled_2x.vti');
+
+  await voxelReader.setUrl(vtiPath);
+  await voxelReader.loadData();
+  const voxelData = voxelReader.getOutputData();
+  const scalars = voxelData.getPointData().getScalars();
+  const scalarData = scalars.getData();
+
+  // Count voxels per tissue ID
+  const voxelCountsByTissueId = {};
+  for (let i = 0; i < scalarData.length; i++) {
+    const tissueId = scalarData[i];
+    voxelCountsByTissueId[tissueId] = (voxelCountsByTissueId[tissueId] || 0) + 1;
+  }
+
+
   // Extract all property values for percentile calculation
   const densityValues = [];
+  const densityWeights = [];
   const heatCapacityValues = [];
+  const heatCapacityWeights = [];
   const thermalConductivityValues = [];
+  const thermalConductivityWeights = [];
   const heatTransferRateValues = [];
+  const heatTransferRateWeights = [];
   const heatGenerationRateValues = [];
+  const heatGenerationRateWeights = [];
   const speedOfSoundValues = [];
+  const speedOfSoundWeights = [];
   const lfConductivityValues = [];
+  const lfConductivityWeights = [];
   const nonlinearityValues = [];
+  const nonlinearityWeights = [];
   const waterValues = [];
+  const waterWeights = [];
+
+  // Create reverse mapping: tissue name -> tissue ID
+  const tissueIdByName = {};
+  Object.keys(tissueNamesByID).forEach(id => {
+    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
+  });
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
     const props = tissue.properties;
+
+    // Get voxel count for this tissue (use 0 if tissue not found in voxel data)
+    const tissueId = tissueIdByName[tissueName];
+    const voxelCount = voxelCountsByTissueId[tissueId] || 0;
 
     // Thermal properties
     if (props.thermal) {
       if (props.thermal.density !== null && props.thermal.density > 0) {
         densityByTissueName[tissueName] = props.thermal.density;
         densityValues.push(props.thermal.density);
+        densityWeights.push(voxelCount);
       }
       if (props.thermal.heatCapacity !== null && props.thermal.heatCapacity > 0) {
         heatCapacityByTissueName[tissueName] = props.thermal.heatCapacity;
         heatCapacityValues.push(props.thermal.heatCapacity);
+        heatCapacityWeights.push(voxelCount);
       }
       if (props.thermal.thermalConductivity !== null && props.thermal.thermalConductivity > 0) {
         thermalConductivityByTissueName[tissueName] = props.thermal.thermalConductivity;
         thermalConductivityValues.push(props.thermal.thermalConductivity);
+        thermalConductivityWeights.push(voxelCount);
       }
       if (props.thermal.heatTransferRate !== null && props.thermal.heatTransferRate > 0) {
         heatTransferRateByTissueName[tissueName] = props.thermal.heatTransferRate;
         heatTransferRateValues.push(props.thermal.heatTransferRate);
+        heatTransferRateWeights.push(voxelCount);
       }
       if (props.thermal.heatGenerationRate !== null && props.thermal.heatGenerationRate > 0) {
         heatGenerationRateByTissueName[tissueName] = props.thermal.heatGenerationRate;
         heatGenerationRateValues.push(props.thermal.heatGenerationRate);
+        heatGenerationRateWeights.push(voxelCount);
       }
     }
 
@@ -278,10 +363,12 @@ async function loadTissueProperties() {
       if (props.acoustic.speedOfSound !== null && props.acoustic.speedOfSound > 0) {
         speedOfSoundByTissueName[tissueName] = props.acoustic.speedOfSound;
         speedOfSoundValues.push(props.acoustic.speedOfSound);
+        speedOfSoundWeights.push(voxelCount);
       }
       if (props.acoustic.nonlinearity !== null && props.acoustic.nonlinearity > 0) {
         nonlinearityParameterByTissueName[tissueName] = props.acoustic.nonlinearity;
         nonlinearityValues.push(props.acoustic.nonlinearity);
+        nonlinearityWeights.push(voxelCount);
       }
     }
 
@@ -290,6 +377,7 @@ async function loadTissueProperties() {
       if (props.dielectric.lfConductivity !== null && props.dielectric.lfConductivity > 0) {
         lfConductivityByTissueName[tissueName] = props.dielectric.lfConductivity;
         lfConductivityValues.push(props.dielectric.lfConductivity);
+        lfConductivityWeights.push(voxelCount);
       }
     }
 
@@ -297,59 +385,93 @@ async function loadTissueProperties() {
     if (props.waterContent !== null && props.waterContent > 0) {
       waterContentByTissueName[tissueName] = props.waterContent;
       waterValues.push(props.waterContent);
+      waterWeights.push(voxelCount);
     }
   });
 
   // Calculate bounds for all properties
   minDensity = Math.min(...densityValues);
   maxDensity = Math.max(...densityValues);
-  medianDensity = calculatePercentile(densityValues, 50);
+  medianDensity = calculateWeightedPercentile(densityValues, densityWeights, 50);
 
   minHeatCapacity = Math.min(...heatCapacityValues);
   maxHeatCapacity = Math.max(...heatCapacityValues);
-  medianHeatCapacity = calculatePercentile(heatCapacityValues, 50);
+  medianHeatCapacity = calculateWeightedPercentile(heatCapacityValues, heatCapacityWeights, 50);
 
   minThermalConductivity = Math.min(...thermalConductivityValues);
   maxThermalConductivity = Math.max(...thermalConductivityValues);
-  medianThermalConductivity = calculatePercentile(thermalConductivityValues, 50);
+  medianThermalConductivity = calculateWeightedPercentile(thermalConductivityValues, thermalConductivityWeights, 50);
 
   minSpeedOfSound = Math.min(...speedOfSoundValues);
   maxSpeedOfSound = Math.max(...speedOfSoundValues);
-  medianSpeedOfSound = calculatePercentile(speedOfSoundValues, 50);
+  meanSpeedOfSound = calculateWeightedMean(speedOfSoundValues, speedOfSoundWeights);
+  medianSpeedOfSound = calculateWeightedPercentile(speedOfSoundValues, speedOfSoundWeights, 50);
 
   minHeatTransferRate = Math.min(...heatTransferRateValues);
   maxHeatTransferRate = Math.max(...heatTransferRateValues);
+  medianHeatTransferRate = calculateWeightedPercentile(heatTransferRateValues, heatTransferRateWeights, 50);
+
   minHeatGenerationRate = Math.min(...heatGenerationRateValues);
   maxHeatGenerationRate = Math.max(...heatGenerationRateValues);
+  medianHeatGenerationRate = calculateWeightedPercentile(heatGenerationRateValues, heatGenerationRateWeights, 50);
+
   minLFConductivity = Math.min(...lfConductivityValues);
   maxLFConductivity = Math.max(...lfConductivityValues);
 
   if (nonlinearityValues.length > 0) {
     minNonlinearityParameter = Math.min(...nonlinearityValues);
     maxNonlinearityParameter = Math.max(...nonlinearityValues);
+    medianNonlinearityParameter = calculateWeightedPercentile(nonlinearityValues, nonlinearityWeights, 50);
   }
 
   if (waterValues.length > 0) {
     minWaterContent = Math.min(...waterValues);
     maxWaterContent = Math.max(...waterValues);
+    medianWaterContent = calculateWeightedPercentile(waterValues, waterWeights, 50);
   }
 
   // Compute electromagnetic properties at default frequency
-  computeElectromagneticProperties(currentFrequency);
+  await computeElectromagneticProperties(currentFrequency);
 
   // Compute acoustic attenuation at default frequency
-  computeAcousticAttenuation(currentFrequency);
+  await computeAcousticAttenuation(currentFrequency);
 
   // Compute default element (hydrogen)
-  computeElementalComposition(currentElement);
+  await computeElementalComposition(currentElement);
 }
 
 // These functions are now deprecated - all data is loaded in loadTissueProperties()
 // Keeping them as stubs for backward compatibility if needed
 
 // Compute elemental composition for current element
-function computeElementalComposition(element) {
+async function computeElementalComposition(element) {
   const elementValues = [];
+  const elementWeights = [];
+
+  // Load VTI file to get voxel counts per tissue (if not already loaded)
+  let voxelCountsByTissueId = {};
+  if (Object.keys(voxelCountsByTissueId).length === 0) {
+    const voxelReader = vtkXMLImageDataReader.newInstance();
+    const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1_downsampled_2x.vti');
+
+    await voxelReader.setUrl(vtiPath);
+    await voxelReader.loadData();
+    const voxelData = voxelReader.getOutputData();
+    const scalars = voxelData.getPointData().getScalars();
+    const scalarData = scalars.getData();
+
+    // Count voxels per tissue ID
+    for (let i = 0; i < scalarData.length; i++) {
+      const tissueId = scalarData[i];
+      voxelCountsByTissueId[tissueId] = (voxelCountsByTissueId[tissueId] || 0) + 1;
+    }
+  }
+
+  // Create reverse mapping: tissue name -> tissue ID
+  const tissueIdByName = {};
+  Object.keys(tissueNamesByID).forEach(id => {
+    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
+  });
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
@@ -358,8 +480,13 @@ function computeElementalComposition(element) {
 
     elementalCompositionByTissueName[tissueName] = value;
 
+    // Get voxel count for this tissue
+    const tissueId = tissueIdByName[tissueName];
+    const voxelCount = voxelCountsByTissueId[tissueId] || 0;
+
     if (value !== null && value > 0) {
       elementValues.push(value);
+      elementWeights.push(voxelCount);
     }
   });
 
@@ -367,13 +494,40 @@ function computeElementalComposition(element) {
   if (elementValues.length > 0) {
     minElementalComposition = Math.min(...elementValues);
     maxElementalComposition = Math.max(...elementValues);
+    medianElementalComposition = calculateWeightedPercentile(elementValues, elementWeights, 50);
   }
 }
 
 // Compute relaxation times for current field strength and parameter
-function computeRelaxationTimes(fieldStrength, parameter) {
+async function computeRelaxationTimes(fieldStrength, parameter) {
   const relaxationValues = [];
+  const relaxationWeights = [];
   const key = `${parameter.toLowerCase()}_${fieldStrength.replace('.', '')}`;  // e.g., "t1_15T"
+
+  // Load VTI file to get voxel counts per tissue (if not already loaded)
+  let voxelCountsByTissueId = {};
+  if (Object.keys(voxelCountsByTissueId).length === 0) {
+    const voxelReader = vtkXMLImageDataReader.newInstance();
+    const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1_downsampled_2x.vti');
+
+    await voxelReader.setUrl(vtiPath);
+    await voxelReader.loadData();
+    const voxelData = voxelReader.getOutputData();
+    const scalars = voxelData.getPointData().getScalars();
+    const scalarData = scalars.getData();
+
+    // Count voxels per tissue ID
+    for (let i = 0; i < scalarData.length; i++) {
+      const tissueId = scalarData[i];
+      voxelCountsByTissueId[tissueId] = (voxelCountsByTissueId[tissueId] || 0) + 1;
+    }
+  }
+
+  // Create reverse mapping: tissue name -> tissue ID
+  const tissueIdByName = {};
+  Object.keys(tissueNamesByID).forEach(id => {
+    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
+  });
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
@@ -381,8 +535,13 @@ function computeRelaxationTimes(fieldStrength, parameter) {
 
     relaxationTimeByTissueName[tissueName] = value;
 
+    // Get voxel count for this tissue
+    const tissueId = tissueIdByName[tissueName];
+    const voxelCount = voxelCountsByTissueId[tissueId] || 0;
+
     if (value !== null && value > 0) {
       relaxationValues.push(value);
+      relaxationWeights.push(voxelCount);
     }
   });
 
@@ -390,13 +549,41 @@ function computeRelaxationTimes(fieldStrength, parameter) {
   if (relaxationValues.length > 0) {
     minRelaxationTime = Math.min(...relaxationValues);
     maxRelaxationTime = Math.max(...relaxationValues);
+    medianRelaxationTime = calculateWeightedPercentile(relaxationValues, relaxationWeights, 50);
   }
 }
 
 // Compute conductivity and permittivity for all tissues at given frequency
-function computeElectromagneticProperties(frequency) {
+async function computeElectromagneticProperties(frequency) {
   const conductivityValues = [];
+  const conductivityWeights = [];
   const permittivityValues = [];
+  const permittivityWeights = [];
+
+  // Load VTI file to get voxel counts per tissue (if not already loaded)
+  let voxelCountsByTissueId = {};
+  if (Object.keys(voxelCountsByTissueId).length === 0) {
+    const voxelReader = vtkXMLImageDataReader.newInstance();
+    const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1_downsampled_2x.vti');
+
+    await voxelReader.setUrl(vtiPath);
+    await voxelReader.loadData();
+    const voxelData = voxelReader.getOutputData();
+    const scalars = voxelData.getPointData().getScalars();
+    const scalarData = scalars.getData();
+
+    // Count voxels per tissue ID
+    for (let i = 0; i < scalarData.length; i++) {
+      const tissueId = scalarData[i];
+      voxelCountsByTissueId[tissueId] = (voxelCountsByTissueId[tissueId] || 0) + 1;
+    }
+  }
+
+  // Create reverse mapping: tissue name -> tissue ID
+  const tissueIdByName = {};
+  Object.keys(tissueNamesByID).forEach(id => {
+    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
+  });
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
@@ -415,11 +602,17 @@ function computeElectromagneticProperties(frequency) {
     conductivityByTissueName[tissueName] = props.conductivity;
     permittivityByTissueName[tissueName] = props.permittivity;
 
+    // Get voxel count for this tissue
+    const tissueId = tissueIdByName[tissueName];
+    const voxelCount = voxelCountsByTissueId[tissueId] || 0;
+
     if (props.conductivity > 0) {
       conductivityValues.push(props.conductivity);
+      conductivityWeights.push(voxelCount);
     }
     if (props.permittivity > 0) {
       permittivityValues.push(props.permittivity);
+      permittivityWeights.push(voxelCount);
     }
   });
 
@@ -428,11 +621,41 @@ function computeElectromagneticProperties(frequency) {
   maxConductivity = Math.max(...conductivityValues);
   minPermittivity = Math.min(...permittivityValues);
   maxPermittivity = Math.max(...permittivityValues);
+
+  // Compute weighted medians for sigmoid scaling
+  medianConductivity = calculateWeightedPercentile(conductivityValues, conductivityWeights, 50);
+  medianPermittivity = calculateWeightedPercentile(permittivityValues, permittivityWeights, 50);
 }
 
 // Compute acoustic attenuation for all tissues at given frequency
-function computeAcousticAttenuation(frequency) {
+async function computeAcousticAttenuation(frequency) {
   const attenuationValues = [];
+  const attenuationWeights = [];
+
+  // Load VTI file to get voxel counts per tissue (if not already loaded)
+  let voxelCountsByTissueId = {};
+  if (Object.keys(voxelCountsByTissueId).length === 0) {
+    const voxelReader = vtkXMLImageDataReader.newInstance();
+    const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1_downsampled_2x.vti');
+
+    await voxelReader.setUrl(vtiPath);
+    await voxelReader.loadData();
+    const voxelData = voxelReader.getOutputData();
+    const scalars = voxelData.getPointData().getScalars();
+    const scalarData = scalars.getData();
+
+    // Count voxels per tissue ID
+    for (let i = 0; i < scalarData.length; i++) {
+      const tissueId = scalarData[i];
+      voxelCountsByTissueId[tissueId] = (voxelCountsByTissueId[tissueId] || 0) + 1;
+    }
+  }
+
+  // Create reverse mapping: tissue name -> tissue ID
+  const tissueIdByName = {};
+  Object.keys(tissueNamesByID).forEach(id => {
+    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
+  });
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
@@ -447,14 +670,20 @@ function computeAcousticAttenuation(frequency) {
 
     attenuationConstantByTissueName[tissueName] = attenuation;
 
+    // Get voxel count for this tissue
+    const tissueId = tissueIdByName[tissueName];
+    const voxelCount = voxelCountsByTissueId[tissueId] || 0;
+
     if (attenuation > 0) {
       attenuationValues.push(attenuation);
+      attenuationWeights.push(voxelCount);
     }
   });
 
   // Use full range
   minAttenuationConstant = Math.min(...attenuationValues);
   maxAttenuationConstant = Math.max(...attenuationValues);
+  medianAttenuationConstant = calculateWeightedPercentile(attenuationValues, attenuationWeights, 50);
 }
 
 // Bone colormap: maps normalized value (0-1) to grayscale bone color
@@ -693,47 +922,47 @@ function getTissueColor(filename) {
     case 'speedOfSound':
       return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true, medianSpeedOfSound);
     case 'attenuationConstant':
-      return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true);
+      return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true, medianAttenuationConstant);
     case 'nonlinearityParameter':
       // Return null for tissues without data (will make them transparent)
       const baValue = nonlinearityParameterByTissueName[tissueName];
       if (baValue === null || baValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true);
+      return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true, medianNonlinearityParameter);
     case 'heatCapacity':
       return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true, medianHeatCapacity);
     case 'thermalConductivity':
       return getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true, medianThermalConductivity);
     case 'heatTransferRate':
-      return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true);
+      return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true, medianHeatTransferRate);
     case 'heatGenerationRate':
-      return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true);
+      return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true, medianHeatGenerationRate);
     case 'conductivity':
-      return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true);
+      return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true, medianConductivity);
     case 'permittivity':
-      return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true);
+      return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true, medianPermittivity);
     case 'relaxationTime':
       // Return null for tissues without data (will make them transparent)
       const relaxationValue = relaxationTimeByTissueName[tissueName];
       if (relaxationValue === null || relaxationValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true);
+      return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true, medianRelaxationTime);
     case 'waterContent':
       // Return null for tissues without data (will make them transparent)
       const waterValue = waterContentByTissueName[tissueName];
       if (waterValue === null || waterValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true);
+      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true, medianWaterContent);
     case 'elementalComposition':
       // Return null for tissues without data (will make them transparent)
       const elementValue = elementalCompositionByTissueName[tissueName];
       if (elementValue === null || elementValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true);
+      return getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true, medianElementalComposition);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -824,7 +1053,7 @@ async function loadAllData() {
         property.setDiffuse(0.8);
         property.setSpecular(0.1);
         property.setSpecularPower(10);
-        property.setOpacity(0.2); // More transparent to see the slice
+        property.setOpacity(0.9); // More transparent to see the slice
       }
 
       renderer.addActor(actor);
@@ -980,7 +1209,6 @@ function loadVoxelSlice(bounds) {
 
   const voxelReader = vtkXMLImageDataReader.newInstance();
   const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1_downsampled_2x.vti');
-  console.log('Loading VTI from:', vtiPath);
 
   voxelReader.setUrl(vtiPath).then(() => {
     // Parse the data
@@ -1002,16 +1230,6 @@ function loadVoxelSlice(bounds) {
 
     // Flip the voxel data along Z axis to correct orientation
     const dims = rawVoxelData.getDimensions();
-    console.log('VTI dimensions:', dims);
-    console.log('VTI spacing:', rawVoxelData.getSpacing());
-
-    // Check WebGL texture size limit
-    const gl = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl');
-    if (gl) {
-      const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-      console.log('WebGL MAX_TEXTURE_SIZE:', maxTextureSize);
-      console.log('VTI fits in texture?', Math.max(...dims) <= maxTextureSize);
-    }
 
     const scalars = rawVoxelData.getPointData().getScalars();
     const scalarData = scalars.getData();
@@ -1207,7 +1425,7 @@ function loadVoxelSlice(bounds) {
     });
 
     // Handle item selection
-    modeDropdown.addEventListener('click', (event) => {
+    modeDropdown.addEventListener('click', async (event) => {
       if (event.target.classList.contains('dropdown-item')) {
         const value = event.target.getAttribute('data-value');
         const text = event.target.textContent;
@@ -1219,23 +1437,33 @@ function loadVoxelSlice(bounds) {
         const frequencyControls = document.getElementById('frequency-controls');
         const relaxationTimeControls = document.getElementById('relaxation-time-controls');
         const elementControls = document.getElementById('element-controls');
+        const frequencyInput = document.getElementById('frequency-input');
+        const frequencyUnit = document.getElementById('frequency-unit');
+
         if (value === 'conductivity' || value === 'permittivity' || value === 'attenuationConstant') {
           frequencyControls.classList.add('visible');
           relaxationTimeControls.classList.remove('visible');
           elementControls.classList.remove('visible');
+
+          // Reset frequency input to match currentFrequency
+          if (frequencyInput && frequencyUnit) {
+            // Default is 100 MHz (100e6 Hz)
+            frequencyInput.value = '100';
+            frequencyUnit.value = '1000000'; // MHz
+          }
         } else if (value === 'relaxationTime') {
           frequencyControls.classList.remove('visible');
           relaxationTimeControls.classList.add('visible');
           elementControls.classList.remove('visible');
           // Compute with default values (1.5T, T1)
-          computeRelaxationTimes(currentFieldStrength, currentRelaxationParameter);
+          await computeRelaxationTimes(currentFieldStrength, currentRelaxationParameter);
           setVisualizationMode('relaxationTime');
         } else if (value === 'elementalComposition') {
           frequencyControls.classList.remove('visible');
           relaxationTimeControls.classList.remove('visible');
           elementControls.classList.add('visible');
           // Compute with default element (hydrogen)
-          computeElementalComposition(currentElement);
+          await computeElementalComposition(currentElement);
           setVisualizationMode('elementalComposition');
         } else {
           frequencyControls.classList.remove('visible');
@@ -1277,7 +1505,7 @@ function loadVoxelSlice(bounds) {
       });
 
       // Function to handle frequency updates
-      const updateFrequency = () => {
+      const updateFrequency = async () => {
         const inputValue = frequencyInput.value.trim();
 
         // Check if empty
@@ -1315,8 +1543,8 @@ function loadVoxelSlice(bounds) {
 
         // Update current frequency and recompute properties
         currentFrequency = frequency;
-        computeElectromagneticProperties(frequency);
-        computeAcousticAttenuation(frequency);
+        await computeElectromagneticProperties(frequency);
+        await computeAcousticAttenuation(frequency);
 
         // Update visualization if in frequency-dependent mode
         if (visualizationMode === 'conductivity' || visualizationMode === 'permittivity' || visualizationMode === 'attenuationConstant') {
@@ -1337,12 +1565,12 @@ function loadVoxelSlice(bounds) {
 
     if (fieldStrengthSelect && relaxationParameterSelect) {
       // Function to handle relaxation time updates
-      const updateRelaxationTime = () => {
+      const updateRelaxationTime = async () => {
         currentFieldStrength = fieldStrengthSelect.value;
         currentRelaxationParameter = relaxationParameterSelect.value;
 
         // Compute relaxation times with selected parameters
-        computeRelaxationTimes(currentFieldStrength, currentRelaxationParameter);
+        await computeRelaxationTimes(currentFieldStrength, currentRelaxationParameter);
 
         // Update visualization
         if (visualizationMode === 'relaxationTime') {
@@ -1362,11 +1590,11 @@ function loadVoxelSlice(bounds) {
 
     if (elementSelect) {
       // Auto-update on element change
-      elementSelect.addEventListener('change', () => {
+      elementSelect.addEventListener('change', async () => {
         currentElement = elementSelect.value;
 
         // Compute elemental composition for selected element
-        computeElementalComposition(currentElement);
+        await computeElementalComposition(currentElement);
 
         // Update visualization
         if (visualizationMode === 'elementalComposition') {
@@ -1668,7 +1896,7 @@ function setVisualizationMode(mode) {
       property.setOpacity(0); // Fully transparent
     } else {
       property.setColor(rgb[0], rgb[1], rgb[2]);
-      property.setOpacity(0.2); // Reset to normal opacity
+      property.setOpacity(0.9); // Reset to normal opacity
     }
   });
 
@@ -1696,7 +1924,7 @@ function setVisualizationMode(mode) {
               rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true, medianSpeedOfSound);
               break;
             case 'attenuationConstant':
-              rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true);
+              rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true, medianAttenuationConstant);
               break;
             case 'nonlinearityParameter':
               // Check if tissue has data
@@ -1704,7 +1932,7 @@ function setVisualizationMode(mode) {
               if (baValue === null || baValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true);
+                rgb = getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true, medianNonlinearityParameter);
               }
               break;
             case 'heatCapacity':
@@ -1714,16 +1942,16 @@ function setVisualizationMode(mode) {
               rgb = getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true, medianThermalConductivity);
               break;
             case 'heatTransferRate':
-              rgb = getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true);
+              rgb = getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true, medianHeatTransferRate);
               break;
             case 'heatGenerationRate':
-              rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true);
+              rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true, medianHeatGenerationRate);
               break;
             case 'conductivity':
-              rgb = getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true);
+              rgb = getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true, medianConductivity);
               break;
             case 'permittivity':
-              rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true);
+              rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true, medianPermittivity);
               break;
             case 'relaxationTime':
               // Check if tissue has data
@@ -1731,7 +1959,7 @@ function setVisualizationMode(mode) {
               if (relaxationValue === null || relaxationValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true);
+                rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true, medianRelaxationTime);
               }
               break;
             case 'waterContent':
@@ -1740,7 +1968,7 @@ function setVisualizationMode(mode) {
               if (waterValue === null || waterValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true);
+                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true, medianWaterContent);
               }
               break;
             case 'elementalComposition':
@@ -1749,7 +1977,7 @@ function setVisualizationMode(mode) {
               if (elementValue === null || elementValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true);
+                rgb = getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true, medianElementalComposition);
               }
               break;
             default:
