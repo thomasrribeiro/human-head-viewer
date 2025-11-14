@@ -27,17 +27,14 @@ import { calculateAttenuationConstant } from './acoustic.js';
 // Get data base URL - uses env variable or falls back to BASE_URL for backwards compatibility
 const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.BASE_URL}data/`;
 
-// Helper function to get file paths - handles production (flat R2 structure) vs development (nested structure)
+console.log('Environment check:', {
+  VITE_DATA_BASE_URL: import.meta.env.VITE_DATA_BASE_URL,
+  BASE_URL: import.meta.env.BASE_URL,
+  DATA_BASE_URL: DATA_BASE_URL
+});
+
+// Helper function to get file paths - same structure for both dev and production
 function getFilePath(filename) {
-  // In production (using worker), files are in flat structure
-  if (import.meta.env.VITE_DATA_BASE_URL) {
-    // Map nested paths to flat structure for R2
-    if (filename.includes('MIDA_v1_voxels/')) {
-      return `${DATA_BASE_URL}${filename.replace('MIDA_v1_voxels/', '')}`;
-    }
-    return `${DATA_BASE_URL}${filename}`;
-  }
-  // In development, use nested structure
   return `${DATA_BASE_URL}${filename}`;
 }
 
@@ -979,8 +976,10 @@ function loadVoxelSlice(bounds) {
   stlBounds = bounds;
 
   const voxelReader = vtkXMLImageDataReader.newInstance();
+  const vtiPath = getFilePath('MIDA_v1_voxels/MIDA_v1.vti');
+  console.log('Loading VTI from:', vtiPath);
 
-  voxelReader.setUrl(getFilePath('MIDA_v1_voxels/MIDA_v1.vti')).then(() => {
+  voxelReader.setUrl(vtiPath).then(() => {
     // Parse the data
     return voxelReader.loadData();
   }).then(() => {
