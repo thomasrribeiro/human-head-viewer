@@ -12,8 +12,6 @@ import vtkCellArray from '@kitware/vtk.js/Common/Core/CellArray';
  * @returns {Object} Object containing vertices and faces with tissue IDs
  */
 export function parsePLY(arrayBuffer) {
-  console.log('Starting PLY parse, buffer size:', arrayBuffer.byteLength);
-
   // First, parse the header (which is always ASCII)
   const uint8Array = new Uint8Array(arrayBuffer);
   let headerEnd = 0;
@@ -40,26 +38,19 @@ export function parsePLY(arrayBuffer) {
   const headerText = new TextDecoder('utf-8').decode(new Uint8Array(headerBytes));
   const headerLines = headerText.split('\n');
 
-  console.log('PLY header has', headerLines.length, 'lines');
-
   for (const line of headerLines) {
     const trimmedLine = line.trim();
 
     if (trimmedLine.startsWith('format binary')) {
       isBinary = true;
-      console.log('PLY format: binary');
     } else if (trimmedLine.startsWith('format ascii')) {
       isBinary = false;
-      console.log('PLY format: ascii');
     } else if (trimmedLine.startsWith('element vertex')) {
       vertexCount = parseInt(trimmedLine.split(' ')[2]);
-      console.log('Vertex count:', vertexCount);
     } else if (trimmedLine.startsWith('element face')) {
       faceCount = parseInt(trimmedLine.split(' ')[2]);
-      console.log('Face count:', faceCount);
     } else if (trimmedLine === 'property uchar tissue_id' || trimmedLine === 'property uchar tissueId') {
       hasCustomProperty = true;
-      console.log('Found tissue_id property');
     }
   }
 
@@ -74,14 +65,11 @@ export function parsePLY(arrayBuffer) {
   const faceTissueIds = [];
 
   if (isBinary) {
-    console.log('Parsing binary PLY data...');
-
     // Create DataView for binary parsing
     const dataView = new DataView(arrayBuffer, headerEnd);
     let offset = 0;
 
     // Parse vertices (3 floats + 1 byte per vertex)
-    console.log('Parsing', vertexCount, 'vertices from binary data');
     for (let i = 0; i < vertexCount; i++) {
       const x = dataView.getFloat32(offset, true); offset += 4;
       const y = dataView.getFloat32(offset, true); offset += 4;
@@ -93,7 +81,6 @@ export function parsePLY(arrayBuffer) {
     }
 
     // Parse faces
-    console.log('Parsing', faceCount, 'faces from binary data');
     for (let i = 0; i < faceCount; i++) {
       const vertexCount = dataView.getUint8(offset); offset += 1;
 
@@ -109,11 +96,8 @@ export function parsePLY(arrayBuffer) {
       faceTissueIds.push(vertexTissueIds[v1]);
     }
 
-    console.log('Binary PLY parse complete');
-
   } else {
     // ASCII format parsing (keeping existing logic for fallback)
-    console.log('Parsing ASCII PLY data...');
 
     const dataText = new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer.slice(headerEnd)));
     const lines = dataText.split('\n');
@@ -143,8 +127,6 @@ export function parsePLY(arrayBuffer) {
       faceTissueIds.push(vertexTissueIds[parseInt(parts[1])]);
     }
   }
-
-  console.log('PLY parse complete:', vertices.length / 3, 'vertices,', faces.length / 4, 'faces');
 
   return {
     vertices: new Float32Array(vertices),
@@ -202,10 +184,6 @@ export function createTissuePolyData(meshData) {
       newVertexIndex++;
     }
 
-    if (tissueIndex <= 3) {
-      console.log(`Tissue ${tissueId}: ${uniqueVertexIndices.size} unique vertices, ${faceVertices.length / 3} faces`);
-    }
-
     const polyData = vtkPolyData.newInstance();
 
     // Set only the vertices used by this tissue
@@ -231,7 +209,6 @@ export function createTissuePolyData(meshData) {
     tissuePolyDataMap.set(tissueId, polyData);
   }
 
-  console.log('Created polydata for', tissuePolyDataMap.size, 'tissues');
   return tissuePolyDataMap;
 }
 
@@ -242,7 +219,6 @@ export function createTissuePolyData(meshData) {
  * @returns {Promise<Map>} Map of tissueId to vtkPolyData
  */
 export async function loadMergedPLY(url, onProgress) {
-  console.log('Loading PLY from:', url);
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -254,21 +230,16 @@ export async function loadMergedPLY(url, onProgress) {
   const isGzipped = url.endsWith('.gz');
   let arrayBuffer;
 
-  console.log('File is gzipped:', isGzipped);
-
   try {
     if (isGzipped) {
       // Decompress gzip
       const blob = await response.blob();
-      console.log('Blob size:', blob.size, 'bytes');
       const ds = new DecompressionStream('gzip');
       const decompressedStream = blob.stream().pipeThrough(ds);
       const decompressedBlob = await new Response(decompressedStream).blob();
       arrayBuffer = await decompressedBlob.arrayBuffer();
-      console.log('Decompressed size:', arrayBuffer.byteLength, 'bytes');
     } else {
       arrayBuffer = await response.arrayBuffer();
-      console.log('Uncompressed file size:', arrayBuffer.byteLength, 'bytes');
     }
   } catch (error) {
     console.error('Error processing file:', error);

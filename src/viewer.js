@@ -786,7 +786,6 @@ async function loadAllData() {
       const tissueName = tissueNamesByID[tissueId];
 
       if (!tissueName) {
-        console.warn(`No tissue name found for ID ${tissueId}`);
         return;
       }
 
@@ -807,7 +806,6 @@ async function loadAllData() {
 
       // Handle transparency for tissues without data
       if (rgb === null) {
-        console.log(`Tissue ${tissueName} (ID ${tissueId}) has no color, making transparent`);
         property.setOpacity(0); // Fully transparent
       } else {
         property.setColor(rgb[0], rgb[1], rgb[2]);
@@ -824,8 +822,6 @@ async function loadAllData() {
       mappers.push(mapper);
       tissueCount++;
     });
-
-    console.log('Created', tissueCount, 'actors out of', totalTissues, 'tissues');
 
     // Don't render yet - wait for voxel slice to load so camera is positioned correctly
     // After PLY is loaded, load voxel slice
