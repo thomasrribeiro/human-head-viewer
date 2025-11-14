@@ -1002,6 +1002,17 @@ function loadVoxelSlice(bounds) {
 
     // Flip the voxel data along Z axis to correct orientation
     const dims = rawVoxelData.getDimensions();
+    console.log('VTI dimensions:', dims);
+    console.log('VTI spacing:', rawVoxelData.getSpacing());
+
+    // Check WebGL texture size limit
+    const gl = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl');
+    if (gl) {
+      const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      console.log('WebGL MAX_TEXTURE_SIZE:', maxTextureSize);
+      console.log('VTI fits in texture?', Math.max(...dims) <= maxTextureSize);
+    }
+
     const scalars = rawVoxelData.getPointData().getScalars();
     const scalarData = scalars.getData();
     const flippedData = new scalarData.constructor(scalarData.length);
