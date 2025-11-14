@@ -782,8 +782,8 @@ async function loadAllData() {
     return; // Stop execution if critical data fails to load
   }
 
-  // Load merged PLY file
-  const plyUrl = getFilePath('merged_tissues.ply');
+  // Load merged PLY file (gzipped for faster loading)
+  const plyUrl = getFilePath('merged_tissues.ply.gz');
 
   loadMergedPLY(plyUrl).then(tissueData => {
     updateLoadingStatus('Loading voxel slice...');
