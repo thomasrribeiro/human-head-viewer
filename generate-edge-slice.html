@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate Edge Slice</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #f5f5f5;
+    }
+
+    #export-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s ease;
+      z-index: 3000;
+    }
+
+    #export-btn:hover {
+      background: #0052a3;
+    }
+
+    #export-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    #slice-info {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      color: #333;
+      z-index: 3000;
+    }
+
+    #render-wrapper {
+      position: absolute;
+      top: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 350px; /* CANVAS WIDTH CONTROL: Adjust this to change canvas width */
+      height: 450px;
+      border: 2px solid #ddd;
+      background: white;
+    }
+
+    #slider-container {
+      position: absolute;
+      left: calc(50% + 245px); /* Adjusted for new canvas width */
+      top: 100px;
+      z-index: 100;
+    }
+
+    #depth-slider {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 8px;
+      height: 450px;
+      background: #ddd;
+      outline: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      cursor: pointer;
+    }
+
+    #depth-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      background: #666;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    #depth-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      background: #666;
+      cursor: pointer;
+      border-radius: 50%;
+      border: none;
+    }
+
+    #depth-slider:hover {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <button id="export-btn">Save slice as PNG</button>
+  <div id="slice-info">Slice: <span id="slice-number">50.0</span>%</div>
+
+  <div id="render-wrapper"></div>
+
+  <div id="slider-container">
+    <input type="range" id="depth-slider" min="0" max="100" value="50" step="0.1">
+  </div>
+
+  <script type="module" src="/src/animate-viewer-edges.js"></script>
+</body>
+</html>

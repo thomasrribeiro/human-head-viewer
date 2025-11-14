@@ -27,10 +27,11 @@ const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.B
 // ----------------------------------------------------------------------------
 
 const renderWindow = vtkFullScreenRenderWindow.newInstance({
-  background: [1, 1, 1],
+  background: [0, 0, 0, 0], // Transparent background
   container: document.getElementById('render-wrapper'),
 });
 const renderer = renderWindow.getRenderer();
+renderer.setBackground(0, 0, 0, 0); // Transparent background
 
 // ----------------------------------------------------------------------------
 // Load tissue color mapping from MIDA data file
@@ -215,52 +216,87 @@ function loadVoxelSlice(bounds) {
     imageSliceActor = vtkImageSlice.newInstance();
     imageSliceActor.setMapper(imageMapper);
 
-    const voxelCenterXAfterOffset = voxelCenterX + xOffset;
-    const voxelCenterZAfterOffset = voxelCenterZ + zOffset;
-    const xAdjust = stlCenterX - voxelCenterXAfterOffset;
-    const zAdjust = stlCenterZ - voxelCenterZAfterOffset;
-
-    const xManualOffset = 1;
-    const zManualOffset = 2;
-
-    const localOriginX = stlCenterX - xOffset - xAdjust;
-    const localOriginY = stlCenterY - yOffset;
-    const localOriginZ = stlCenterZ - zOffset - zAdjust;
-    imageSliceActor.setOrigin(localOriginX, localOriginY, localOriginZ);
-
-    const rotationY = -90;
-    imageSliceActor.rotateY(rotationY);
-
-    imageSliceActor.setPosition(xOffset + xAdjust + xManualOffset, yOffset, zOffset + zAdjust + zManualOffset);
+    // No rotation on the slice
 
     const sliceProperty = imageSliceActor.getProperty();
     sliceProperty.setRGBTransferFunction(voxelColorTransferFunction);
     sliceProperty.setPiecewiseFunction(ofun);
     sliceProperty.setUseLookupTableScalarRange(true);
 
-    renderer.addActor(imageSliceActor);
+    // Don't add the white slice - we only want edges
+    // renderer.addActor(imageSliceActor);
 
     // Create edge-detected image data
     createEdgeDetectedSlice();
 
-    // Set up camera
+    // Set up camera to look down at the slice (XZ plane view)
     renderer.resetCamera();
     const camera = renderer.getActiveCamera();
-    camera.azimuth(210);
-    camera.elevation(30);
-    camera.zoom(1.3);
 
-    const position = camera.getPosition();
-    camera.setPosition(position[0], position[1] + CAMERA_VERTICAL_OFFSET, position[2]);
-    const focalPoint = camera.getFocalPoint();
-    camera.setFocalPoint(focalPoint[0], focalPoint[1] + CAMERA_VERTICAL_OFFSET, focalPoint[2]);
+    // Position camera to look straight down at the Y-slice
+    const bounds = imageSliceActor.getBounds();
+    const centerX = (bounds[0] + bounds[1]) / 2;
+    const centerY = (bounds[2] + bounds[3]) / 2;
+    const centerZ = (bounds[4] + bounds[5]) / 2;
 
-    updateSlicePosition(66.67);
+    // Set camera position above the slice, looking down
+    camera.setPosition(centerX, centerY + 500, centerZ);
+    camera.setFocalPoint(centerX, centerY, centerZ);
+
+    // ROTATION CONTROL: Adjust the angle here (in degrees)
+    // ViewUp controls the rotation of the view
+    // Format: (x, y, z) - try adjusting these values
+    const rotationAngle = 2; // Adjust this value to rotate the view (e.g., -5, 5, 10, etc.)
+    const radians = (rotationAngle * Math.PI) / 180;
+    camera.setViewUp(Math.sin(radians), 0, -Math.cos(radians));
+
+    renderer.resetCamera();
+
+    // ZOOM CONTROL: Increase zoom to fill canvas
+    camera.zoom(1.5); // Adjust this value (try 1.3, 1.5, 1.8, 2.0, etc.)
+
+    updateSlicePosition(50);
 
     renderWindow.getRenderWindow().render();
 
-    // Start animation after model is loaded
-    startAnimation();
+    // Start animation after model is loaded (only if not in generate mode)
+    if (typeof anime !== 'undefined') {
+      startAnimation();
+    } else {
+      // Set up slider for manual control
+      const slider = document.getElementById('depth-slider');
+      const sliceNumberDisplay = document.getElementById('slice-number');
+      if (slider) {
+        slider.addEventListener('input', (event) => {
+          const value = parseFloat(event.target.value);
+          updateSlicePosition(value);
+          // Update slice number display
+          if (sliceNumberDisplay) {
+            sliceNumberDisplay.textContent = value.toFixed(1);
+          }
+        });
+      }
+
+      // Set up export button
+      const exportBtn = document.getElementById('export-btn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          // Force a render before capturing
+          renderWindow.getRenderWindow().render();
+
+          const openGLRenderWindow = renderWindow.getApiSpecificRenderWindow();
+          const canvas = openGLRenderWindow.getCanvas();
+
+          // Use canvas.toDataURL instead of toBlob for better compatibility
+          const dataURL = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          const sliderVal = slider ? slider.value : '50';
+          link.download = `edge-slice-${sliderVal.replace('.', '-')}.png`;
+          link.href = dataURL;
+          link.click();
+        });
+      }
+    }
   });
 }
 
