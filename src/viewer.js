@@ -27,6 +27,20 @@ import { calculateAttenuationConstant } from './acoustic.js';
 // Get data base URL - uses env variable or falls back to BASE_URL for backwards compatibility
 const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.BASE_URL}data/`;
 
+// Helper function to get file paths - handles production (flat R2 structure) vs development (nested structure)
+function getFilePath(filename) {
+  // In production (using worker), files are in flat structure
+  if (import.meta.env.VITE_DATA_BASE_URL) {
+    // Map nested paths to flat structure for R2
+    if (filename.includes('MIDA_v1_voxels/')) {
+      return `${DATA_BASE_URL}${filename.replace('MIDA_v1_voxels/', '')}`;
+    }
+    return `${DATA_BASE_URL}${filename}`;
+  }
+  // In development, use nested structure
+  return `${DATA_BASE_URL}${filename}`;
+}
+
 // ----------------------------------------------------------------------------
 // Standard rendering code setup
 // ----------------------------------------------------------------------------
@@ -131,7 +145,7 @@ let minElementalComposition = Infinity;
 let maxElementalComposition = -Infinity;
 
 async function loadTissueColors() {
-  const response = await fetch(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.txt`);
+  const response = await fetch(getFilePath('MIDA_v1_voxels/MIDA_v1.txt'));
   if (!response.ok) {
     throw new Error(`Failed to load MIDA_v1.txt: ${response.status} ${response.statusText}`);
   }
@@ -217,7 +231,7 @@ function calculateIQRRange(values) {
 
 // Load unified tissue properties JSON file
 async function loadTissueProperties() {
-  const response = await fetch(`${DATA_BASE_URL}tissue_properties.json`);
+  const response = await fetch(getFilePath('tissue_properties.json'));
   if (!response.ok) {
     throw new Error(`Failed to load tissue_properties.json: ${response.status} ${response.statusText}`);
   }
@@ -772,7 +786,7 @@ async function loadAllData() {
   }
 
   // Load merged PLY file
-  const plyUrl = `${DATA_BASE_URL}merged_tissues.ply`;
+  const plyUrl = getFilePath('merged_tissues.ply');
 
   loadMergedPLY(plyUrl).then(tissueData => {
     updateLoadingStatus('Loading voxel slice...');
@@ -966,7 +980,7 @@ function loadVoxelSlice(bounds) {
 
   const voxelReader = vtkXMLImageDataReader.newInstance();
 
-  voxelReader.setUrl(`${DATA_BASE_URL}MIDA_v1_voxels/MIDA_v1.vti`).then(() => {
+  voxelReader.setUrl(getFilePath('MIDA_v1_voxels/MIDA_v1.vti')).then(() => {
     // Parse the data
     return voxelReader.loadData();
   }).then(() => {
