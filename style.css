@@ -4,8 +4,7 @@
 }
 body {
   margin: 0;
-  padding: 0 0 0 0;
-  padding-top: 110px !important;
+  padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -14,18 +13,19 @@ body {
   min-height: 0;
 }
 #top-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.95);
+  position: relative;
+  width: 100vw;
+  min-height: 80px;
+  background: transparent;
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   justify-content: space-between;
   padding: 20px;
   z-index: 3000;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+  align-self: stretch;
 }
 #top-bar > div:first-child {
   display: flex;
@@ -246,6 +246,7 @@ body {
   font-style: italic;
   margin-top: 8px;
   padding-top: 0;
+  padding-left: 20px;
 }
 #tissue-tooltip {
   position: fixed;
@@ -283,7 +284,7 @@ body {
   justify-content: center;
   z-index: 1000;
   position: absolute;
-  right: -60px;
+  right: -40px;
   top: 50%;
   transform: translateY(-50%);
   transition: opacity 0.5s ease-in;
