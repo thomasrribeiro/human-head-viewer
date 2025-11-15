@@ -246,7 +246,7 @@ body {
   font-style: italic;
   margin-top: 8px;
   padding-top: 0;
-  padding-left: 20px;
+  /* padding-left: 20px; */
 }
 #tissue-tooltip {
   position: fixed;
@@ -420,12 +420,13 @@ body {
 }
 #colorbar-container {
   z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
+  background: transparent;
   padding: 0;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   width: 0;
   overflow: hidden;
   opacity: 0;
@@ -438,6 +439,7 @@ body {
   width: 120px;
   padding: 15px 5px 15px 15px;
   opacity: 1;
+  overflow: visible;
 }
 #colorbar-content {
   display: flex;
@@ -478,10 +480,8 @@ body {
   font-size: 12px;
   font-weight: normal;
   color: #333;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  margin-right: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-bottom: 8px;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
 }
