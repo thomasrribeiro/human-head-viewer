@@ -9,7 +9,7 @@ import vtkPlane from '@kitware/vtk.js/Common/DataModel/Plane';
 import { loadMergedPLY } from '../utils/ply-loader.js';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtkImageSlice from '@kitware/vtk.js/Rendering/Core/ImageSlice';
-import vtkImageMapper from '@kitware/vtk.js/Rendering/Core/ImageMapper';
+import vtkImageResliceMapper from '@kitware/vtk.js/Rendering/Core/ImageResliceMapper';
 import vtkColorTransferFunction from '@kitware/vtk.js/Rendering/Core/ColorTransferFunction';
 import vtkPiecewiseFunction from '@kitware/vtk.js/Common/DataModel/PiecewiseFunction';
 import vtkXMLImageDataReader from '@kitware/vtk.js/IO/XML/XMLImageDataReader';
@@ -1176,7 +1176,7 @@ window.addEventListener('resize', () => {
 // Start loading (mobile warning disabled - files are downsampled)
 // if (isMobileDevice()) {
 //   const proceed = confirm(
-//     'Warning: This 3D viewer requires significant memory (332.39MB) and may not work well on mobile devices. ' +
+//     'Warning: This 3D viewer requires 65MB memory and may not work on mobile devices. ' +
 //     'Your device may reload the page if it runs out of memory. Continue anyway?'
 //   );
 //   if (proceed) {
@@ -1200,6 +1200,7 @@ let stlBounds = null;
 let voxelColorTransferFunction = null;
 let voxelOpacityFunction = null;
 let defaultCameraState = null;
+let slicePlane = null; // Store reference to slice plane for updates
 
 // Manual camera vertical offset - adjust this to shift view up/down
 const CAMERA_VERTICAL_OFFSET = 0;
@@ -1277,7 +1278,9 @@ function loadVoxelSlice(bounds) {
 
     // Create color transfer function for voxel data
     voxelColorTransferFunction = vtkColorTransferFunction.newInstance();
-    for (let i = 0; i <= 116; i++) {
+    // Set background (tissue ID 0) to white to match renderer background
+    voxelColorTransferFunction.addRGBPoint(0, 1.0, 1.0, 1.0); // White background
+    for (let i = 1; i <= 116; i++) {
       const rgb = tissueColorsByID[i] || [0.5, 0.5, 0.5];
       voxelColorTransferFunction.addRGBPoint(i, rgb[0], rgb[1], rgb[2]);
     }
@@ -1290,13 +1293,46 @@ function loadVoxelSlice(bounds) {
       ofun.addPoint(i, 1.0); // All tissues fully opaque
     }
 
-    // Create image slice actor
-    const imageMapper = vtkImageMapper.newInstance();
+    // Create image slice actor using reslice mapper for better mobile compatibility
+    const imageMapper = vtkImageResliceMapper.newInstance();
     imageMapper.setInputData(voxelData);
-    imageMapper.setSlicingMode(1); // YZ plane (along Y axis)
+
+    // Create slice plane perpendicular to Y axis (green) to create X-Z (red-yellow) slice
+    // This matches the original slicingMode(1) behavior
+    slicePlane = vtkPlane.newInstance();
+    slicePlane.setNormal(0, 1, 0); // Perpendicular to Y axis
+    const center = voxelData.getCenter();
+    slicePlane.setOrigin(center[0], center[1], center[2]); // Center of volume
+    imageMapper.setSlicePlane(slicePlane);
+
+    // Set slab thickness to 0 to get a single slice without border artifacts
+    imageMapper.setSlabThickness(0.0);
 
     imageSliceActor = vtkImageSlice.newInstance();
     imageSliceActor.setMapper(imageMapper);
+
+    // Ensure no border is rendered - use nearest neighbor interpolation
+    const imageProperty = imageSliceActor.getProperty();
+    imageProperty.setInterpolationTypeToNearest();
+
+    // Try to disable any edge/border rendering
+    if (imageProperty.setEdgeVisibility) {
+      imageProperty.setEdgeVisibility(false);
+    }
+    if (imageProperty.setBackfaceProperty) {
+      // Make backface invisible
+      const backfaceProperty = imageProperty.getBackfaceProperty();
+      if (backfaceProperty && backfaceProperty.setOpacity) {
+        backfaceProperty.setOpacity(0);
+      }
+    }
+
+    // Set clipping to prevent border artifacts
+    imageSliceActor.getMapper().setClippingPlanes(null);
+
+    // Try to disable ambient lighting that might cause edge darkening
+    imageProperty.setAmbient(0.0);
+    imageProperty.setDiffuse(1.0);
 
     // Rotate around STL center
     // Calculate adjustments to center voxel data with STL data
@@ -1331,6 +1367,8 @@ function loadVoxelSlice(bounds) {
     sliceProperty.setRGBTransferFunction(voxelColorTransferFunction);
     sliceProperty.setPiecewiseFunction(ofun);
     sliceProperty.setUseLookupTableScalarRange(true);
+    // Use nearest neighbor interpolation to avoid black border artifacts
+    sliceProperty.setInterpolationTypeToNearest();
 
     renderer.addActor(imageSliceActor);
 
@@ -1630,7 +1668,7 @@ function resetCameraToDefault() {
 let yOffset = 0; // Store the offset globally
 
 function updateSlicePosition(sliderValue) {
-  if (!voxelData || !imageSliceActor || !stlBounds) return;
+  if (!voxelData || !imageSliceActor || !stlBounds || !slicePlane) return;
 
   // Use STL bounds for slider range
   const minY = stlBounds[2];
@@ -1642,20 +1680,16 @@ function updateSlicePosition(sliderValue) {
   // Update clipping plane for STL surfaces
   clippingPlane.setOrigin(0, yPosition, 0);
 
-  // Update slice position for voxel data
-  const spacing = voxelData.getSpacing();
-  const origin = voxelData.getOrigin();
-  const voxelBounds = voxelData.getBounds();
-
+  // Update slice plane position for voxel data
   // Map STL Y position to voxel Y position (accounting for coordinate offset)
   const voxelYPosition = yPosition - yOffset;
 
-  // Convert to slice index in voxel space
-  const sliceIndex = Math.round((voxelYPosition - origin[1]) / spacing[1]);
-  const dims = voxelData.getDimensions();
-  const clampedIndex = Math.max(0, Math.min(dims[1] - 1, sliceIndex));
+  // Update the slice plane's origin to the new Y position
+  const center = voxelData.getCenter();
+  slicePlane.setOrigin(center[0], voxelYPosition, center[2]);
 
-  imageSliceActor.getMapper().setSlice(clampedIndex);
+  // Trigger mapper update
+  imageSliceActor.getMapper().modified();
 
   renderWindow.getRenderWindow().render();
 }
