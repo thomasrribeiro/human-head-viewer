@@ -987,7 +987,7 @@ const actors = {}; // Store actors by filename for updates
 function updateLoadingStatus(message) {
   const statusText = document.getElementById('status-text');
   if (statusText) {
-    statusText.textContent = message;
+    statusText.textContent = `Status: ${message}`;
   }
 }
 
@@ -1006,7 +1006,7 @@ async function loadAllData() {
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
       statusIndicator.className = 'error';
-      statusText.textContent = 'Failed';
+      statusText.textContent = 'Status: Failed';
     }
     return; // Stop execution if critical data fails to load
   }
@@ -1075,7 +1075,7 @@ async function loadAllData() {
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
       statusIndicator.className = 'error';
-      statusText.textContent = 'Failed';
+      statusText.textContent = 'Status: Failed';
     }
   });
 }
@@ -1101,9 +1101,6 @@ function scaleColorbar() {
     }
     if (colorbarTicks) {
       colorbarTicks.style.height = colorbarHeight + 'px';
-    }
-    if (colorbarTitle) {
-      colorbarTitle.style.height = colorbarHeight + 'px';
     }
 
     // Debug slider positioning
@@ -1168,27 +1165,23 @@ window.addEventListener('resize', () => {
 });
 
 // Check if mobile device and warn about memory requirements
-// Commented out for now - downsampled files are much smaller (~83MB total)
-// function isMobileDevice() {
-//   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-// }
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
-// Start loading (mobile warning disabled - files are downsampled)
-// if (isMobileDevice()) {
-//   const proceed = confirm(
-//     'Warning: This 3D viewer requires 65MB memory and may not work on mobile devices. ' +
-//     'Your device may reload the page if it runs out of memory. Continue anyway?'
-//   );
-//   if (proceed) {
-//     loadAllData();
-//   } else {
-//     updateLoadingStatus('Mobile device detected - viewer requires desktop browser');
-//   }
-// } else {
-//   loadAllData();
-// }
-
-loadAllData();
+// Start loading with mobile warning
+if (isMobileDevice()) {
+  const proceed = confirm(
+    'This 3D viewer may take a few seconds to render. Continue?'
+  );
+  if (proceed) {
+    loadAllData();
+  } else {
+    updateLoadingStatus('Mobile device detected - viewer requires desktop browser');
+  }
+} else {
+  loadAllData();
+}
 
 // ----------------------------------------------------------------------------
 // Load voxelized data for the slice
@@ -1421,7 +1414,7 @@ function loadVoxelSlice(bounds) {
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
       statusIndicator.className = 'loaded';
-      statusText.textContent = 'Ready';
+      statusText.textContent = 'Status: Ready';
     }
 
     // Enable orientation widget after model is loaded
@@ -1647,7 +1640,7 @@ function loadVoxelSlice(bounds) {
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
       statusIndicator.className = 'error';
-      statusText.textContent = 'Failed';
+      statusText.textContent = 'Status: Failed';
     }
   });
 }
