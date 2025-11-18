@@ -40,3 +40,6 @@ Open your browser to the URL shown in the terminal.
 - [Human head model](https://itis.swiss/virtual-population/regional-human-models/mida-model/) (subject to [MIDA license terms](https://itis.swiss/assets/Downloads/VirtualPopulation/License_Agreements/LicenseAgreementMIDA_2024.pdf))
 
 - [IT'IS Tissue Properties Database](https://itis.swiss/virtual-population/tissue-properties/database/)
+
+## License
+© 2025 by [Thomas Ribeiro](https://thomasrribeiro.github.io/). Licensed under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
