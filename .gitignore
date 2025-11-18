@@ -1,11 +1,13 @@
 node_modules/
 .DS_Store
 .claude/
-CLAUDE.md
 *.log
 dist/
 *.ply
 *.ply.gz
+
+.env.development
+.env.production
 
 # Large demo videos (optional - uncomment if you don't want them in repo)
 # public/demos/*.mov
