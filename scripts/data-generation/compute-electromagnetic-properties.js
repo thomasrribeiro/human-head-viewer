@@ -224,23 +224,25 @@ function validateAt100MHz(tissues, referenceFile) {
     if (permError < 1 && condError < 1) matchCount++;
     totalCount++;
 
-    if (i < 20 || status === '✗ FAIL') { // Show first 20 or failures
-        tissueName.padEnd(30),
-        refPerm.toFixed(4).padEnd(15),
-        calc.permittivity.toFixed(4).padEnd(15),
-        refCond.toFixed(4).padEnd(15),
-        calc.conductivity.toFixed(4).padEnd(15),
-        status
-      );
-    }
+    // Validation output (commented for cleaner output)
+    // if (i < 20 || status === '✗ FAIL') {
+    //   console.log(
+    //     tissueName.padEnd(30),
+    //     refPerm.toFixed(4).padEnd(15),
+    //     calc.permittivity.toFixed(4).padEnd(15),
+    //     refCond.toFixed(4).padEnd(15),
+    //     calc.conductivity.toFixed(4).padEnd(15),
+    //     status
+    //   );
+    // }
   }
 
 }
 
 // Main execution
 if (require.main === module) {
-  const dbPath = path.join(__dirname, '../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
-  const refPath = path.join(__dirname, '../data/Database-V5-0/dielectric_properties_100MHz.txt');
+  const dbPath = path.join(__dirname, '../../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
+  const refPath = path.join(__dirname, '../../data/Database-V5-0/dielectric_properties_100MHz.txt');
 
   const tissues = parseDielectricDatabase(dbPath);
 

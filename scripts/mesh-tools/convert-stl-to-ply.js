@@ -8,9 +8,9 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const STL_DIR = path.join(__dirname, '../data/MIDA_v1_surfaces');
-const OUTPUT_DIR = path.join(__dirname, '../data');
-const MIDA_FILE = path.join(__dirname, '../data/MIDA_v1_voxels/MIDA_v1.txt');
+const STL_DIR = path.join(__dirname, '../../data/MIDA_v1_surfaces');
+const OUTPUT_DIR = path.join(__dirname, '../../data');
+const MIDA_FILE = path.join(__dirname, '../../data/MIDA_v1_voxels/MIDA_v1.txt');
 
 // Load tissue mapping
 function loadTissueMapping() {
@@ -190,22 +190,12 @@ async function mergeSTLFilesOptimized() {
 
   console.log(`PLY file size: ${(plyBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
-  // Create compressed version
-  console.log('Creating compressed version...');
-  const compressed = zlib.gzipSync(plyBuffer, { level: 9 });
-  const compressedPath = path.join(OUTPUT_DIR, 'merged_tissues.ply.gz');
-  fs.writeFileSync(compressedPath, compressed);
-
-  console.log(`Compressed size: ${(compressed.length / 1024 / 1024).toFixed(2)} MB`);
-
   // Calculate savings
   const reduction = ((totalOriginalSize - plyBuffer.length) / totalOriginalSize * 100).toFixed(1);
-  const compressedReduction = ((totalOriginalSize - compressed.length) / totalOriginalSize * 100).toFixed(1);
 
   console.log('\n=== File Size Comparison ===');
   console.log(`Individual STL files: ${(totalOriginalSize / 1024 / 1024).toFixed(2)} MB`);
   console.log(`Merged PLY file: ${(plyBuffer.length / 1024 / 1024).toFixed(2)} MB (${reduction}% reduction)`);
-  console.log(`Compressed PLY: ${(compressed.length / 1024 / 1024).toFixed(2)} MB (${compressedReduction}% reduction)`);
 
   // Save metadata
   const metadata = {
@@ -226,7 +216,6 @@ async function mergeSTLFilesOptimized() {
 
   console.log('\nFiles created:');
   console.log(`  - ${plyPath}`);
-  console.log(`  - ${compressedPath}`);
   console.log(`  - ${path.join(OUTPUT_DIR, 'merged_tissues.json')}`);
 }
 

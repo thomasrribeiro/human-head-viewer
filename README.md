@@ -43,15 +43,15 @@ npm install
 5. Generate required files:
    ```bash
    # Convert MIDA voxel data
-   python3 scripts/mesh-tools/convert_mat_to_vtk.py
+   uv run python scripts/mesh-tools/convert-mat-to-vtk.py
 
    # Generate tissue properties from IT'IS database
    node scripts/data-generation/generate-all-properties.js
 
    # Merge STL files and create downsampled versions
    node scripts/mesh-tools/convert-stl-to-ply.js
-   python3 scripts/data-generation/downsample-vti.py
-   python3 scripts/data-generation/downsample-ply.py
+   uv run python scripts/data-generation/downsample-vti.py
+   uv run python scripts/data-generation/downsample-ply.py
    ```
 
 ### Running the Viewer

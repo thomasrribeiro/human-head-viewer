@@ -130,9 +130,9 @@ function validate(tissues, midaTissueNames) {
 }
 
 // Main execution
-const databasePath = path.join(__dirname, '../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
-const midaPath = path.join(__dirname, '../data/MIDA_v1_voxels/MIDA_v1.txt');
-const outputPath = path.join(__dirname, '../data/nonlinearity_parameter.json');
+const databasePath = path.join(__dirname, '../../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
+const midaPath = path.join(__dirname, '../../data/MIDA_v1_voxels/MIDA_v1.txt');
+const outputPath = path.join(__dirname, '../../data/nonlinearity_parameter.json');
 
 const tissues = parseNonlinearityDatabase(databasePath);
 

@@ -173,10 +173,10 @@ function validate(tissues, validationFilePath, midaTissueNames) {
 }
 
 // Main execution
-const databasePath = path.join(__dirname, '../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
-const validationPath = path.join(__dirname, '../data/Database-V5-0/attenuation_constant_1MHz.txt');
-const midaPath = path.join(__dirname, '../data/MIDA_v1_voxels/MIDA_v1.txt');
-const outputPath = path.join(__dirname, '../data/acoustic_attenuation.json');
+const databasePath = path.join(__dirname, '../../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
+const validationPath = path.join(__dirname, '../../data/Database-V5-0/attenuation_constant_1MHz.txt');
+const midaPath = path.join(__dirname, '../../data/MIDA_v1_voxels/MIDA_v1.txt');
+const outputPath = path.join(__dirname, '../../data/acoustic_attenuation.json');
 
 const tissues = parseAcousticDatabase(databasePath);
 

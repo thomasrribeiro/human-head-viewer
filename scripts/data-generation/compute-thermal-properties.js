@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const databasePath = path.join(__dirname, '../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
+const databasePath = path.join(__dirname, '../../data/Database-V5-0/Thermal_dielectric_acoustic_MR properties_database_V5.0(ASCII).txt');
 
 
 // Read database file

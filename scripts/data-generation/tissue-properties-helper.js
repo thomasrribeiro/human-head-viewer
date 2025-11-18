@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const TISSUE_PROPERTIES_PATH = path.join(__dirname, '../data/tissue_properties.json');
+const TISSUE_PROPERTIES_PATH = path.join(__dirname, '../../data/tissue_properties.json');
 
 /**
  * Load existing tissue properties or create empty structure
