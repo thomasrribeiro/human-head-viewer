@@ -4,7 +4,7 @@ Interactive human head viewer in the browser.
 
 **Live Demo:** https://thomasrribeiro.github.io/human-head-viewer/
 
-<img src="public/screenshots/gui.png" alt="User interface" width="400">
+<img src="public/screenshots/gui.png" alt="User interface" width="600">
 
 *Displays chemical, electromagnetic, mechanical and thermal tissue properties.*
 
