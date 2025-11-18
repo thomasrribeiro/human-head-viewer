@@ -14,20 +14,45 @@ Interactive human head viewer in the browser.
 
 - Node.js (v14 or higher)
 - npm
+- [uv](https://github.com/astral-sh/uv) package manager
 
 ### Installation
 
-1. Install dependencies:
+1. Create and activate Python virtual environment:
+```bash
+uv venv
+source .venv/bin/activate 
+```
+
+2. Install Python dependencies:
+```bash
+uv pip install -r requirements.txt
+```
+
+3. Install Node.js dependencies:
 ```bash
 npm install
 ```
 
-2. Obtain MIDA model data:
-   - Visit the [MIDA Model page](https://itis.swiss/virtual-population/regional-human-models/mida-model/)
-   - Request access to the MIDA v1.0 dataset
-   - Once downloaded, place the following folders in the `data/` directory:
-     - `MIDA_v1_surfaces/` (115 STL surface files)
-     - `MIDA_v1_voxels/` (voxel data including MIDA_v1.vti and MIDA_v1.txt)
+4. Obtain required data:
+   - **MIDA Model**: Visit the [MIDA Model page](https://itis.swiss/virtual-population/regional-human-models/mida-model/), request access to MIDA v1.0, and place in `data/`:
+     - `MIDA_v1_surfaces/` (117 STL files)
+     - `MIDA_v1_voxels/` (MIDA_v1.mat and MIDA_v1.txt)
+   - **IT'IS Tissue Database**: Download [Database V5.0](https://itis.swiss/virtual-population/tissue-properties/database/) and place `Database-V5-0/` folder in `data/`
+
+5. Generate required files:
+   ```bash
+   # Convert MIDA voxel data
+   python3 scripts/mesh-tools/convert_mat_to_vtk.py
+
+   # Generate tissue properties from IT'IS database
+   node scripts/data-generation/generate-all-properties.js
+
+   # Merge STL files and create downsampled versions
+   node scripts/mesh-tools/convert-stl-to-ply.js
+   python3 scripts/data-generation/downsample-vti.py
+   python3 scripts/data-generation/downsample-ply.py
+   ```
 
 ### Running the Viewer
 
