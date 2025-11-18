@@ -10,6 +10,7 @@ tissue_properties.json
 
 .env.development
 .env.production
+vite.config.local.js
 
 # Large demo videos (optional - uncomment if you don't want them in repo)
 # public/demos/*.mov

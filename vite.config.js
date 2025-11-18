@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
+import { existsSync } from 'fs'
 
 export default defineConfig({
   base: '/human-head-viewer/',
@@ -10,13 +11,24 @@ export default defineConfig({
   server: {
     fs: {
       // Allow serving files from outside the project root
-      allow: [
-        // Allow the project directory itself
-        '.',
-        // Allow the actual directories that symlinks point to
-        '/Users/thomasribeiro/Documents/tissue_database',
-        '/Users/thomasribeiro/Documents/mida'
-      ]
+      allow: (() => {
+        const paths = ['.'];
+
+        // Optional: Add custom paths from vite.config.local.js if it exists
+        const localConfigPath = resolve(__dirname, 'vite.config.local.js');
+        if (existsSync(localConfigPath)) {
+          try {
+            const localConfig = require(localConfigPath);
+            if (localConfig.symlinkPaths && Array.isArray(localConfig.symlinkPaths)) {
+              paths.push(...localConfig.symlinkPaths);
+            }
+          } catch (e) {
+            console.warn('Could not load vite.config.local.js:', e.message);
+          }
+        }
+
+        return paths;
+      })()
     }
   },
   resolve: {
