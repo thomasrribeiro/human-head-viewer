@@ -8,8 +8,7 @@ dist/
 merged_tissues.json
 tissue_properties.json
 
-.env.development
-.env.production
+.env.*
 vite.config.local.js
 
 # Large demo videos (optional - uncomment if you don't want them in repo)
