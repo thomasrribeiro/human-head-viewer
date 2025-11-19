@@ -1437,6 +1437,12 @@ function loadVoxelSlice(bounds) {
       resetButton.style.opacity = '1';
     }
 
+    // Move loading status down
+    const loadingStatus = document.getElementById('loading-status');
+    if (loadingStatus) {
+      loadingStatus.classList.add('loaded');
+    }
+
     // Set up slider control
     const slider = document.getElementById('depth-slider');
     slider.addEventListener('input', (event) => {

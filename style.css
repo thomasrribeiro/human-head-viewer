@@ -23,7 +23,6 @@ body {
 #top-bar {
   position: relative;
   width: 100vw;
-  min-height: 80px;
   background: transparent;
   display: flex;
   flex-direction: row;
@@ -82,8 +81,8 @@ body {
 }
 #viz-mode-container {
   background: rgba(255, 255, 255, 0.9);
-  padding: 10px;
-  padding-bottom: 30px;
+  padding: 5px;
+  padding-bottom: 5px;
   border-radius: 4px;
   z-index: 1000;
   position: relative;
@@ -91,9 +90,10 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   max-width: 700px;
   width: auto;
+  margin-top: 0;
 }
 #frequency-controls {
   display: none;
@@ -205,6 +205,9 @@ body {
   width: 100%;
   flex: 1;
   min-height: 0;
+  margin-top: -20px;
+  padding-left: 0;
+  padding-right: 0;
 }
 #render-block {
   position: relative;
@@ -256,9 +259,20 @@ body {
   font-size: 13px;
   color: #666;
   font-style: italic;
+  position: fixed;
+  top: 120px;
+  left: 30px;
+  margin-left: 0;
+  padding-left: 0;
+  z-index: 2000;
+}
+#loading-status.loaded {
+  position: static;
+  left: auto;
   margin-top: 8px;
-  padding-top: 0;
-  /* padding-left: 20px; */
+  margin-bottom: 20px;
+  margin-left: 0;
+  padding-left: 30px;
 }
 #tissue-tooltip {
   position: fixed;
