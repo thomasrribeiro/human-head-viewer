@@ -1,3 +1,9 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 :root {
   --render-width: min(50vw, 400px);
   --render-height: min(80vw, 650px);
@@ -11,6 +17,8 @@ body {
   align-items: center;
   height: 100vh;
   min-height: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.6;
 }
 #top-bar {
   position: relative;
@@ -21,7 +29,7 @@ body {
   flex-direction: row;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 20px;
+  padding: 20px 30px;
   z-index: 3000;
   flex-wrap: wrap;
   box-sizing: border-box;
@@ -31,26 +39,30 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  gap: 0;
 }
 #page-title {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 28px;
+  font-size: 36px;
   font-weight: 700;
   letter-spacing: -0.5px;
   color: #1a1a1a;
-  margin: 0;
+  margin-top: 0px;
   margin-bottom: 8px;
+  margin-left: 0;
+  margin-right: 0;
 }
-.back-link {
-  color: #D4AF37;
+.nav-menu {
+  display: flex;
+  gap: 20px;
+  margin-top: 0;
+  margin-bottom: 25px;
+}
+.nav-menu a {
+  color: #F5C842;
   text-decoration: none;
-  font-family: 'IBM Plex Mono', monospace;
   font-size: 14px;
-  padding: 0;
-  transition: opacity 0.2s ease;
-}
-.back-link:hover {
-  opacity: 0.7;
+  font-family: 'IBM Plex Mono', monospace;
 }
 .github-link {
   display: flex;
