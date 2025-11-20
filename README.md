@@ -36,9 +36,9 @@ npm install
 
 4. Obtain required data:
    - **MIDA Model**: Visit the [MIDA Model page](https://itis.swiss/virtual-population/regional-human-models/mida-model/), request access to MIDA v1.0, and place in `data/`:
-     - `MIDA_v1_surfaces/` (117 STL files)
-     - `MIDA_v1_voxels/` (MIDA_v1.mat and MIDA_v1.txt)
-   - **IT'IS Tissue Database**: Download [Database V5.0](https://itis.swiss/virtual-population/tissue-properties/database/) and place `Database-V5-0/` folder in `data/`
+     - `MIDA_v1_surfaces/` (STL files)
+     - `MIDA_v1_voxels/` (required MIDA_v1.mat and MIDA_v1.txt)
+   - **IT'IS Tissue Database**: Download [Database V5.0](https://itis.swiss/virtual-population/tissue-properties/database/) and place `Database-V5-0/` folder in `data/` (requires `Thermal_dielectric_acoustic_MR properties_database_V5.0(Excel).xls` and `ElementalComposition_database V5.0(Excel).xls`)
 
 5. Generate required files:
    ```bash
@@ -46,7 +46,7 @@ npm install
    uv run python scripts/mesh-tools/convert-mat-to-vtk.py
 
    # Generate tissue properties from IT'IS database
-   node scripts/data-generation/generate-all-properties.js
+   uv run python scripts/data-generation/generate-tissue-properties.py
 
    # Merge STL files and create downsampled versions
    node scripts/mesh-tools/convert-stl-to-ply.js

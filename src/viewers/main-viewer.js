@@ -754,15 +754,15 @@ function seismicColormap(value) {
 function rdbuColormap(value) {
   const t = Math.max(0, Math.min(1, value));
 
-  // ColorBrewer RdBu diverging scheme (red at low, white at middle, blue at high)
+  // ColorBrewer RdBu diverging scheme FLIPPED (blue at low, white at middle, red at high)
   if (t < 0.5) {
-    // Red to white
+    // Blue to white
     const s = t / 0.5;
-    return [0.698 + s * (1 - 0.698), 0.094 + s * (1 - 0.094), 0.169 + s * (1 - 0.169)];
+    return [0.019 + s * (1 - 0.019), 0.188 + s * (1 - 0.188), 0.380 + s * (1 - 0.380)];
   } else {
-    // White to blue
+    // White to red
     const s = (t - 0.5) / 0.5;
-    return [1 - s * (1 - 0.019), 1 - s * (1 - 0.188), 1 - s * (1 - 0.380)];
+    return [1 - s * (1 - 0.698), 1 - s * (1 - 0.094), 1 - s * (1 - 0.169)];
   }
 }
 
