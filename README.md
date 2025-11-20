@@ -2,7 +2,7 @@
 
 Interactive human head viewer in the browser.
 
-**Live Demo:** https://thomasrribeiro.github.io/human-head-viewer/
+**Live Demo:** https://thomasrribeiro.com/human-head-viewer/
 
 <img src="public/screenshots/gui.png" alt="User interface" width="600">
 
