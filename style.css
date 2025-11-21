@@ -460,7 +460,7 @@ body {
   overflow: hidden;
   opacity: 0;
   position: absolute;
-  left: -140px;
+  left: -105px;
   top: 50%;
   transform: translateY(-50%);
 }
