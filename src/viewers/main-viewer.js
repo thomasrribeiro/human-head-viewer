@@ -27,6 +27,10 @@ import { calculateAttenuationConstant } from '../utils/acoustic.js';
 // Get data base URL - uses env variable or falls back to BASE_URL for backwards compatibility
 const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL || `${import.meta.env.BASE_URL}data/`;
 
+// ----------------------------------------------------------------------------
+// Visualization parameters
+// ----------------------------------------------------------------------------
+
 // console.log('Environment check:', {
 //   VITE_DATA_BASE_URL: import.meta.env.VITE_DATA_BASE_URL,
 //   BASE_URL: import.meta.env.BASE_URL,
@@ -269,6 +273,34 @@ function calculateWeightedMean(values, weights) {
   return weightedSum / totalWeight;
 }
 
+// Helper function to create tissue ID mapping including alternative names
+function createTissueIdMapping(tissueNamesByID, tissuePropertiesData) {
+  const tissueIdByName = {};
+
+  Object.keys(tissueNamesByID).forEach(id => {
+    const midaName = tissueNamesByID[id];
+    tissueIdByName[midaName] = parseInt(id);
+
+    // Find matching tissue in properties database and map alternative names
+    Object.keys(tissuePropertiesData).forEach(propName => {
+      const tissue = tissuePropertiesData[propName];
+      if (tissue.name === midaName ||
+          (tissue.alternativeNames && tissue.alternativeNames.includes(midaName))) {
+        // Map the main property name to this ID
+        tissueIdByName[propName] = parseInt(id);
+        // Also map all alternative names
+        if (tissue.alternativeNames) {
+          tissue.alternativeNames.forEach(altName => {
+            tissueIdByName[altName] = parseInt(id);
+          });
+        }
+      }
+    });
+  });
+
+  return tissueIdByName;
+}
+
 // Load unified tissue properties JSON file
 async function loadTissueProperties() {
   const response = await fetch(getFilePath('tissue_properties.json'));
@@ -315,18 +347,21 @@ async function loadTissueProperties() {
   const waterValues = [];
   const waterWeights = [];
 
-  // Create reverse mapping: tissue name -> tissue ID
-  const tissueIdByName = {};
-  Object.keys(tissueNamesByID).forEach(id => {
-    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
-  });
+  // Create reverse mapping: tissue name -> tissue ID (including alternative names)
+  const tissueIdByName = createTissueIdMapping(tissueNamesByID, tissuePropertiesData);
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
     const props = tissue.properties;
 
-    // Get voxel count for this tissue (use 0 if tissue not found in voxel data)
+    // Get tissue ID to check if this tissue exists in MIDA model
     const tissueId = tissueIdByName[tissueName];
+
+    // Skip if tissue not in MIDA model
+    if (tissueId === undefined) {
+      return;
+    }
+
     const voxelCount = voxelCountsByTissueId[tissueId] || 0;
 
     // Thermal properties
@@ -467,21 +502,26 @@ async function computeElementalComposition(element) {
     }
   }
 
-  // Create reverse mapping: tissue name -> tissue ID
-  const tissueIdByName = {};
-  Object.keys(tissueNamesByID).forEach(id => {
-    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
-  });
+  // Create reverse mapping: tissue name -> tissue ID (including alternative names)
+  const tissueIdByName = createTissueIdMapping(tissueNamesByID, tissuePropertiesData);
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
+
+    // Get tissue ID to check if this tissue exists in MIDA model
+    const tissueId = tissueIdByName[tissueName];
+
+    // Skip if tissue not in MIDA model
+    if (tissueId === undefined) {
+      return;
+    }
+
     const elemental = tissue.properties.elemental;
     const value = elemental ? elemental[element] : null;
 
     elementalCompositionByTissueName[tissueName] = value;
 
     // Get voxel count for this tissue
-    const tissueId = tissueIdByName[tissueName];
     const voxelCount = voxelCountsByTissueId[tissueId] || 0;
 
     if (value !== null && value > 0) {
@@ -495,6 +535,11 @@ async function computeElementalComposition(element) {
     minElementalComposition = Math.min(...elementValues);
     maxElementalComposition = Math.max(...elementValues);
     medianElementalComposition = calculateWeightedPercentile(elementValues, elementWeights, 50);
+  } else {
+    // No data for this element - reset to Infinity so colorbar knows to hide
+    minElementalComposition = Infinity;
+    maxElementalComposition = -Infinity;
+    medianElementalComposition = 0;
   }
 }
 
@@ -523,20 +568,25 @@ async function computeRelaxationTimes(fieldStrength, parameter) {
     }
   }
 
-  // Create reverse mapping: tissue name -> tissue ID
-  const tissueIdByName = {};
-  Object.keys(tissueNamesByID).forEach(id => {
-    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
-  });
+  // Create reverse mapping: tissue name -> tissue ID (including alternative names)
+  const tissueIdByName = createTissueIdMapping(tissueNamesByID, tissuePropertiesData);
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
+
+    // Get tissue ID to check if this tissue exists in MIDA model
+    const tissueId = tissueIdByName[tissueName];
+
+    // Skip if tissue not in MIDA model
+    if (tissueId === undefined) {
+      return;
+    }
+
     const value = tissue.properties.relaxation ? tissue.properties.relaxation[key] : null;
 
     relaxationTimeByTissueName[tissueName] = value;
 
     // Get voxel count for this tissue
-    const tissueId = tissueIdByName[tissueName];
     const voxelCount = voxelCountsByTissueId[tissueId] || 0;
 
     if (value !== null && value > 0) {
@@ -579,14 +629,19 @@ async function computeElectromagneticProperties(frequency) {
     }
   }
 
-  // Create reverse mapping: tissue name -> tissue ID
-  const tissueIdByName = {};
-  Object.keys(tissueNamesByID).forEach(id => {
-    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
-  });
+  // Create reverse mapping: tissue name -> tissue ID (including alternative names)
+  const tissueIdByName = createTissueIdMapping(tissueNamesByID, tissuePropertiesData);
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
+
+    // Get tissue ID to check if this tissue exists in MIDA model
+    const tissueId = tissueIdByName[tissueName];
+
+    // Skip if tissue not in MIDA model
+    if (tissueId === undefined) {
+      return;
+    }
 
     // Skip if no dielectric data
     if (!tissue.properties.dielectric) {
@@ -603,7 +658,6 @@ async function computeElectromagneticProperties(frequency) {
     permittivityByTissueName[tissueName] = props.permittivity;
 
     // Get voxel count for this tissue
-    const tissueId = tissueIdByName[tissueName];
     const voxelCount = voxelCountsByTissueId[tissueId] || 0;
 
     if (props.conductivity > 0) {
@@ -651,11 +705,8 @@ async function computeAcousticAttenuation(frequency) {
     }
   }
 
-  // Create reverse mapping: tissue name -> tissue ID
-  const tissueIdByName = {};
-  Object.keys(tissueNamesByID).forEach(id => {
-    tissueIdByName[tissueNamesByID[id]] = parseInt(id);
-  });
+  // Create reverse mapping: tissue name -> tissue ID (including alternative names)
+  const tissueIdByName = createTissueIdMapping(tissueNamesByID, tissuePropertiesData);
 
   Object.keys(tissuePropertiesData).forEach(tissueName => {
     const tissue = tissuePropertiesData[tissueName];
@@ -665,13 +716,20 @@ async function computeAcousticAttenuation(frequency) {
       return;
     }
 
+    // Get tissue ID to check if this tissue exists in MIDA model
+    const tissueId = tissueIdByName[tissueName];
+
+    // Skip if tissue not in MIDA model
+    if (tissueId === undefined) {
+      return;
+    }
+
     const attenuationParams = tissue.properties.acoustic.attenuation;
     const attenuation = calculateAttenuationConstant(attenuationParams, frequency);
 
     attenuationConstantByTissueName[tissueName] = attenuation;
 
     // Get voxel count for this tissue
-    const tissueId = tissueIdByName[tissueName];
     const voxelCount = voxelCountsByTissueId[tissueId] || 0;
 
     if (attenuation > 0) {
@@ -867,46 +925,14 @@ function getDensityColor(tissueName) {
   return [clampedNormalized, clampedNormalized, clampedNormalized];
 }
 
-function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc, useLog = false, medianVal = null) {
+function getPropertyColor(tissueName, propertyMap, minVal, maxVal, colormapFunc) {
   const value = propertyMap[tissueName];
   if (value === null || value === undefined) {
     return [0.5, 0.5, 0.5];
   }
 
-  let normalized;
-  if (useLog) {
-    // Use logarithmic scaling
-    if (value <= 0 || minVal <= 0 || maxVal <= 0) {
-      // Fall back to linear if any values are non-positive
-      normalized = (value - minVal) / (maxVal - minVal);
-    } else {
-      const logValue = Math.log10(value);
-      const logMin = Math.log10(minVal);
-      const logMax = Math.log10(maxVal);
-      normalized = (logValue - logMin) / (logMax - logMin);
-    }
-  } else {
-    // Use linear scaling
-    normalized = (value - minVal) / (maxVal - minVal);
-  }
-
-  // Apply sigmoid-based median-centered nonlinear scaling if median is provided
-  if (medianVal !== null && medianVal > 0) {
-    // Map value to range centered on median
-    // Use tanh-based sigmoid for smooth compression around median
-    const medianNormalized = useLog ?
-      (Math.log10(medianVal) - Math.log10(minVal)) / (Math.log10(maxVal) - Math.log10(minVal)) :
-      (medianVal - minVal) / (maxVal - minVal);
-
-    // Shift so median is at 0, scale by steepness factor (3 = moderate compression)
-    const steepness = 25;
-    const shifted = (normalized - medianNormalized) * steepness;
-
-    // Apply tanh sigmoid and map back to [0, 1]
-    const sigmoid = Math.tanh(shifted);
-    normalized = 0.5 + sigmoid * 0.5;
-  }
-
+  // Linear scaling only
+  const normalized = (value - minVal) / (maxVal - minVal);
   const clampedNormalized = Math.max(0, Math.min(1, normalized));
   return colormapFunc(clampedNormalized);
 }
@@ -918,51 +944,51 @@ function getTissueColor(filename) {
 
   switch (visualizationMode) {
     case 'density':
-      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true, medianDensity);
+      return getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap);
     case 'speedOfSound':
-      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true, medianSpeedOfSound);
+      return getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
     case 'attenuationConstant':
-      return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true, medianAttenuationConstant);
+      return getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
     case 'nonlinearityParameter':
       // Return null for tissues without data (will make them transparent)
       const baValue = nonlinearityParameterByTissueName[tissueName];
       if (baValue === null || baValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true, medianNonlinearityParameter);
+      return getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap);
     case 'heatCapacity':
-      return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true, medianHeatCapacity);
+      return getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
     case 'thermalConductivity':
-      return getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true, medianThermalConductivity);
+      return getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap);
     case 'heatTransferRate':
-      return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true, medianHeatTransferRate);
+      return getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap);
     case 'heatGenerationRate':
-      return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true, medianHeatGenerationRate);
+      return getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
     case 'conductivity':
-      return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true, medianConductivity);
+      return getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap);
     case 'permittivity':
-      return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true, medianPermittivity);
+      return getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
     case 'relaxationTime':
       // Return null for tissues without data (will make them transparent)
       const relaxationValue = relaxationTimeByTissueName[tissueName];
       if (relaxationValue === null || relaxationValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true, medianRelaxationTime);
+      return getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
     case 'waterContent':
       // Return null for tissues without data (will make them transparent)
       const waterValue = waterContentByTissueName[tissueName];
       if (waterValue === null || waterValue === undefined) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true, medianWaterContent);
+      return getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap);
     case 'elementalComposition':
-      // Return null for tissues without data (will make them transparent)
+      // Return null for tissues without data (treat 0 as no data for elemental composition)
       const elementValue = elementalCompositionByTissueName[tissueName];
-      if (elementValue === null || elementValue === undefined) {
+      if (elementValue === null || elementValue === undefined || elementValue === 0) {
         return null; // Transparent
       }
-      return getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true, medianElementalComposition);
+      return getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap);
     default:
       return tissueColorsByName[tissueName] || [0.5, 0.5, 0.5];
   }
@@ -1002,6 +1028,7 @@ async function loadAllData() {
     await loadTissueProperties();
   } catch (error) {
     // Update status to error
+    console.error('Error loading tissue data:', error);
     const statusIndicator = document.getElementById('status-indicator');
     const statusText = document.getElementById('status-text');
     if (statusIndicator && statusText) {
@@ -1785,6 +1812,18 @@ function drawColorbar(mode) {
       units = '%';
       break;
     case 'elementalComposition':
+      // Check if there's any data for this element
+      if (minElementalComposition === Infinity || maxElementalComposition === -Infinity) {
+        // No data available - hide colorbar
+        canvas.style.visibility = 'hidden';
+        const tickMarks = document.getElementById('colorbar-tick-marks');
+        const ticks = document.getElementById('colorbar-ticks');
+        const title = document.querySelector('.colorbar-title');
+        if (tickMarks) tickMarks.style.visibility = 'hidden';
+        if (ticks) ticks.style.visibility = 'hidden';
+        if (title) title.style.visibility = 'hidden';
+        return;
+      }
       colormapFunc = viridisColormap;
       // Convert to percentage (multiply by 100)
       minVal = minElementalComposition * 100;
@@ -1794,6 +1833,13 @@ function drawColorbar(mode) {
     default:
       return;
   }
+
+  // Make sure colorbar is visible (in case it was hidden)
+  canvas.style.visibility = 'visible';
+  const tickMarks = document.getElementById('colorbar-tick-marks');
+  const ticks = document.getElementById('colorbar-ticks');
+  if (tickMarks) tickMarks.style.visibility = 'visible';
+  if (ticks) ticks.style.visibility = 'visible';
 
   // Draw gradient from top (high) to bottom (low)
   if (colormapFunc === null) {
@@ -1810,10 +1856,11 @@ function drawColorbar(mode) {
       ctx.fillRect(0, y, width, 1);
     }
   } else {
-    // For other modes, use the colormap function
+    // For colorbar gradient: draw linear gradient
     for (let y = 0; y < height; y++) {
-      const value = 1 - (y / height); // top = 1 (high), bottom = 0 (low)
-      const rgb = colormapFunc(value);
+      const normalized = 1 - (y / height); // top = 1 (high), bottom = 0 (low)
+      const clampedNormalized = Math.max(0, Math.min(1, normalized));
+      const rgb = colormapFunc(clampedNormalized);
       const r = Math.floor(rgb[0] * 255);
       const g = Math.floor(rgb[1] * 255);
       const b = Math.floor(rgb[2] * 255);
@@ -1843,7 +1890,6 @@ function drawColorbar(mode) {
 
   if (mode !== 'default') {
     const numTicks = 7;
-    const useLogScale = true; // Use logarithmic scaling for all properties
 
     for (let i = 0; i < numTicks; i++) {
       const pos = i / (numTicks - 1); // 0 to 1
@@ -1854,20 +1900,10 @@ function drawColorbar(mode) {
       tick.style.top = `${pos * height}px`;
       tickContainer.appendChild(tick);
 
-      // Add label with logarithmic spacing
+      // Add label with linear spacing
       const label = document.createElement('div');
       label.className = 'colorbar-tick';
-      let value;
-      if (useLogScale && minVal > 0 && maxVal > 0) {
-        // Logarithmic spacing
-        const logMin = Math.log10(minVal);
-        const logMax = Math.log10(maxVal);
-        const logValue = logMax - (pos * (logMax - logMin));
-        value = Math.pow(10, logValue);
-      } else {
-        // Linear spacing (fallback for non-positive values)
-        value = maxVal - (pos * (maxVal - minVal));
-      }
+      const value = maxVal - (pos * (maxVal - minVal));
 
       // Default formatting logic: use scientific notation for small values
       if (Math.abs(value) < 0.01 && value !== 0) {
@@ -1951,13 +1987,13 @@ function setVisualizationMode(mode) {
         if (tissueName) {
           switch (mode) {
             case 'density':
-              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap, true, medianDensity);
+              rgb = getPropertyColor(tissueName, densityByTissueName, minDensity, maxDensity, rdbuColormap);
               break;
             case 'speedOfSound':
-              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap, true, medianSpeedOfSound);
+              rgb = getPropertyColor(tissueName, speedOfSoundByTissueName, minSpeedOfSound, maxSpeedOfSound, rdbuColormap);
               break;
             case 'attenuationConstant':
-              rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap, true, medianAttenuationConstant);
+              rgb = getPropertyColor(tissueName, attenuationConstantByTissueName, minAttenuationConstant, maxAttenuationConstant, rdbuColormap);
               break;
             case 'nonlinearityParameter':
               // Check if tissue has data
@@ -1965,26 +2001,26 @@ function setVisualizationMode(mode) {
               if (baValue === null || baValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap, true, medianNonlinearityParameter);
+                rgb = getPropertyColor(tissueName, nonlinearityParameterByTissueName, minNonlinearityParameter, maxNonlinearityParameter, rdbuColormap);
               }
               break;
             case 'heatCapacity':
-              rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap, true, medianHeatCapacity);
+              rgb = getPropertyColor(tissueName, heatCapacityByTissueName, minHeatCapacity, maxHeatCapacity, hotColormap);
               break;
             case 'thermalConductivity':
-              rgb = getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap, true, medianThermalConductivity);
+              rgb = getPropertyColor(tissueName, thermalConductivityByTissueName, minThermalConductivity, maxThermalConductivity, hotColormap);
               break;
             case 'heatTransferRate':
-              rgb = getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap, true, medianHeatTransferRate);
+              rgb = getPropertyColor(tissueName, heatTransferRateByTissueName, minHeatTransferRate, maxHeatTransferRate, hotColormap);
               break;
             case 'heatGenerationRate':
-              rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap, true, medianHeatGenerationRate);
+              rgb = getPropertyColor(tissueName, heatGenerationRateByTissueName, minHeatGenerationRate, maxHeatGenerationRate, hotColormap);
               break;
             case 'conductivity':
-              rgb = getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap, true, medianConductivity);
+              rgb = getPropertyColor(tissueName, conductivityByTissueName, minConductivity, maxConductivity, ylgnbuColormap);
               break;
             case 'permittivity':
-              rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap, true, medianPermittivity);
+              rgb = getPropertyColor(tissueName, permittivityByTissueName, minPermittivity, maxPermittivity, ylgnbuColormap);
               break;
             case 'relaxationTime':
               // Check if tissue has data
@@ -1992,7 +2028,7 @@ function setVisualizationMode(mode) {
               if (relaxationValue === null || relaxationValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap, true, medianRelaxationTime);
+                rgb = getPropertyColor(tissueName, relaxationTimeByTissueName, minRelaxationTime, maxRelaxationTime, ylgnbuColormap);
               }
               break;
             case 'waterContent':
@@ -2001,16 +2037,16 @@ function setVisualizationMode(mode) {
               if (waterValue === null || waterValue === undefined) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap, true, medianWaterContent);
+                rgb = getPropertyColor(tissueName, waterContentByTissueName, minWaterContent, maxWaterContent, viridisColormap);
               }
               break;
             case 'elementalComposition':
-              // Check if tissue has data
+              // Check if tissue has data (treat 0 as no data for elemental composition)
               const elementValue = elementalCompositionByTissueName[tissueName];
-              if (elementValue === null || elementValue === undefined) {
+              if (elementValue === null || elementValue === undefined || elementValue === 0) {
                 rgb = null; // Will be handled below for transparency
               } else {
-                rgb = getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap, true, medianElementalComposition);
+                rgb = getPropertyColor(tissueName, elementalCompositionByTissueName, minElementalComposition, maxElementalComposition, viridisColormap);
               }
               break;
             default:
