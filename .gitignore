@@ -6,7 +6,6 @@ dist/
 *.ply
 *.ply.gz
 merged_tissues.json
-tissue_properties.json
 
 .env.*
 vite.config.local.js
