@@ -5,7 +5,6 @@ node_modules/
 dist/
 *.ply
 *.ply.gz
-merged_tissues.json
 
 .env.*
 vite.config.local.js
