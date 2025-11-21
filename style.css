@@ -5,8 +5,10 @@
 }
 
 :root {
-  --render-width: min(50vw, 400px);
+  --render-width: min(50vw, calc(100vw - 230px), 400px);
   --render-height: min(80vw, 650px);
+  --colorbar-width: 140px;
+  --side-margin: 30px;
 }
 body {
   margin: 0;
@@ -214,6 +216,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
 }
 #render-wrapper {
   position: relative;
