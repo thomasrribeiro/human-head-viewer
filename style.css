@@ -36,7 +36,7 @@ body {
   padding: 20px 25px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .sidebar {
@@ -357,20 +357,8 @@ body {
   font-size: 13px;
   color: #666;
   font-style: italic;
-  position: fixed;
-  bottom: 30px;
-  left: 30px;
-  margin-left: 0;
-  padding-left: 0;
-  z-index: 2000;
-}
-#loading-status.loaded {
-  position: static;
-  left: auto;
-  margin-top: 8px;
-  margin-bottom: 20px;
-  margin-left: 0;
-  padding-left: 30px;
+  margin-top: 12px;
+  margin-bottom: 0;
 }
 #tissue-tooltip {
   position: fixed;
@@ -614,7 +602,7 @@ body {
 @media (max-width: 900px) {
   .layout {
     flex-direction: column;
-    gap: 40px;
+    gap: 20px;
   }
 
   .sidebar {
@@ -625,5 +613,9 @@ body {
 
   .main-content {
     width: 100%;
+  }
+
+  #controls-and-render {
+    margin-top: 0;
   }
 }
