@@ -1204,7 +1204,11 @@ if (isMobileDevice()) {
   if (proceed) {
     loadAllData();
   } else {
-    updateLoadingStatus('Mobile device detected - viewer requires desktop browser');
+    updateLoadingStatus('Viewer cancelled');
+    const statusIndicator = document.getElementById('status-indicator');
+    if (statusIndicator) {
+      statusIndicator.className = 'error';
+    }
   }
 } else {
   loadAllData();
