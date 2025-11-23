@@ -42,6 +42,58 @@ body {
   align-items: flex-start;
   gap: 0;
 }
+
+.breadcrumb-path {
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: #6c6c6c;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 2px;
+}
+
+.breadcrumb-segment {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+
+.breadcrumb-segment:hover {
+  background: #e8e8e8;
+}
+
+.breadcrumb-clickable {
+  cursor: pointer;
+  text-decoration: none;
+  color: #6c6c6c;
+}
+
+.breadcrumb-separator {
+  color: #999;
+  padding: 0 2px;
+  user-select: none;
+}
+
+.breadcrumb-path a,
+.breadcrumb-path a:visited {
+  color: #F5C842;
+  text-decoration: underline;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 0.15s ease;
+}
+
+.breadcrumb-path a:hover {
+  color: #d4a820;
+}
+
+.breadcrumb-path a:active {
+  background: #dcdcdc;
+}
+
 #page-title {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 36px;
