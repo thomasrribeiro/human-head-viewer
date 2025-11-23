@@ -2083,3 +2083,15 @@ function setVisualizationMode(mode) {
   // Re-render the scene
   renderWindow.getRenderWindow().render();
 }
+
+// Debug: Log breadcrumb background width on page load
+window.addEventListener('load', () => {
+  const breadcrumbPath = document.querySelector('.breadcrumb-path');
+  if (breadcrumbPath) {
+    console.log('=== BREADCRUMB YELLOW BACKGROUND DEBUG ===');
+    console.log('Width:', breadcrumbPath.offsetWidth + 'px');
+    console.log('Computed width:', window.getComputedStyle(breadcrumbPath).width);
+    console.log('Window width:', window.innerWidth + 'px');
+    console.log('==========================================');
+  }
+});

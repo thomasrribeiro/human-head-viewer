@@ -30,7 +30,7 @@ body {
   flex-direction: row;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 20px 30px;
+  padding: 20px 25px;
   z-index: 3000;
   flex-wrap: wrap;
   box-sizing: border-box;
@@ -41,12 +41,24 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
+  width: 320px;
+  flex-shrink: 0;
+}
+
+.yellow-header {
+  background: #F5C842;
+  padding: 25px 25px;
+  margin-left: -25px;
+  margin-right: -25px;
+  margin-top: -20px;
+  width: calc(100% + 50px);
+  margin-bottom: 12px;
 }
 
 .breadcrumb-path {
   font-size: 11px;
   font-family: 'IBM Plex Mono', monospace;
-  color: #6c6c6c;
+  color: #1a1a1a;
   display: flex;
   align-items: center;
   margin-bottom: 8px;
@@ -58,6 +70,8 @@ body {
   align-items: center;
   padding: 2px 4px;
   border-radius: 3px;
+  background: #ffffff;
+  color: #1a1a1a;
   transition: background 0.15s ease;
 }
 
@@ -72,26 +86,49 @@ body {
 }
 
 .breadcrumb-separator {
-  color: #999;
+  color: #1a1a1a;
   padding: 0 2px;
   user-select: none;
 }
 
 .breadcrumb-path a,
-.breadcrumb-path a:visited {
-  color: #F5C842;
-  text-decoration: underline;
+.breadcrumb-path a:visited,
+.breadcrumb-path a:active {
+  color: #1a1a1a;
+  text-decoration: none;
   padding: 2px 4px;
   border-radius: 3px;
-  transition: color 0.15s ease;
+  background: #ffffff;
+  transition: background 0.15s ease;
 }
 
 .breadcrumb-path a:hover {
-  color: #d4a820;
+  background: #e8e8e8;
 }
 
-.breadcrumb-path a:active {
-  background: #dcdcdc;
+.header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.social-icons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.social-icons a {
+  color: #1a1a1a;
+  opacity: 0.15;
+  transition: opacity 0.3s ease;
+  display: flex;
+  align-items: center;
+}
+
+.social-icons a:hover {
+  opacity: 0.4;
 }
 
 #page-title {
