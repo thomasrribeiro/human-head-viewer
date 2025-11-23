@@ -14,45 +14,51 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   height: 100vh;
   min-height: 0;
   font-family: 'IBM Plex Mono', monospace;
   line-height: 1.6;
 }
-#top-bar {
-  position: relative;
-  width: 100vw;
-  background: transparent;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 25px;
-  z-index: 3000;
-  flex-wrap: wrap;
-  box-sizing: border-box;
-  align-self: stretch;
-}
-#top-bar > div:first-child {
+
+.container {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.layout {
+  display: flex;
+  gap: 120px;
   align-items: flex-start;
-  gap: 0;
+  padding: 20px 25px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar {
+  background: transparent;
+  padding: 0;
+  position: relative;
   width: 320px;
   flex-shrink: 0;
 }
 
+.main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .yellow-header {
   background: #F5C842;
-  padding: 25px 25px;
-  margin-left: -25px;
-  margin-right: -25px;
-  margin-top: -20px;
-  width: calc(100% + 50px);
-  margin-bottom: 12px;
+  padding: 25px 0;
+  width: 100%;
+  margin-bottom: 0;
 }
 
 .breadcrumb-path {
@@ -62,6 +68,7 @@ body {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
+  margin-top: 8px;
   gap: 2px;
 }
 
@@ -296,15 +303,14 @@ body {
   width: 100%;
   flex: 1;
   min-height: 0;
-  margin-top: -20px;
-  padding-left: 0;
-  padding-right: 0;
+  display: flex;
+  flex-direction: column;
 }
 #render-block {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow: visible;
 }
 #render-wrapper {
@@ -315,7 +321,7 @@ body {
 #viz-and-render {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 0px;
   position: relative;
   width: 100%;
@@ -600,4 +606,22 @@ body {
   text-align: center;
   width: 100%;
   white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+  .layout {
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .sidebar {
+    position: static;
+    width: 320px;
+    flex-shrink: 0;
+  }
+
+  .main-content {
+    width: 100%;
+  }
 }
