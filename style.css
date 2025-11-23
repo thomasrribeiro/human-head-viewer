@@ -62,7 +62,7 @@ body {
 .nav-menu a {
   color: #F5C842;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 16px;
   font-family: 'IBM Plex Mono', monospace;
 }
 .github-link {
@@ -71,9 +71,9 @@ body {
   padding: 0;
   background: transparent;
   color: #333;
-  opacity: 0.7;
+  opacity: 0.25;
   text-decoration: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.3s ease;
 }
 .github-link:hover {
   opacity: 1;
