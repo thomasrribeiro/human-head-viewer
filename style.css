@@ -102,7 +102,7 @@ body {
 .breadcrumb-path a:visited,
 .breadcrumb-path a:active {
   color: #1a1a1a;
-  text-decoration: none;
+  text-decoration: underline;
   padding: 2px 4px;
   border-radius: 3px;
   background: #ffffff;
