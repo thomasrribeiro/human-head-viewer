@@ -5,8 +5,9 @@
 }
 
 :root {
-  --render-width: min(50vw, calc(100vw - 230px), 400px);
-  --render-height: min(80vw, 650px, calc(100vh - 300px));
+  --render-size: min(50vw, calc(100vw - 230px), 400px, calc(100vh - 250px));
+  --render-width: var(--render-size);
+  --render-height: var(--render-size);
   --colorbar-width: 140px;
   --side-margin: 30px;
 }
@@ -31,27 +32,48 @@ body {
 
 .layout {
   display: flex;
-  gap: 120px;
-  align-items: flex-start;
-  padding: 20px 25px;
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+  flex-direction: column;
+  height: 100%;
 }
 
 .sidebar {
   background: transparent;
-  padding: 0;
-  position: relative;
+  padding: 20px 25px;
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  gap: 120px;
+  align-items: flex-start;
+}
+
+.sidebar-left {
   width: 320px;
   flex-shrink: 0;
 }
 
-.main-content {
+.sidebar-right {
   flex: 1;
   min-width: 0;
+}
+
+.canvas-container {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.main-content {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
 }
 
 .yellow-header {
@@ -300,13 +322,10 @@ body {
 }
 #controls-and-render {
   position: relative;
-  width: 100%;
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 20px;
+  justify-content: flex-start;
 }
 #render-block {
   position: relative;
@@ -599,23 +618,3 @@ body {
 }
 
 /* Responsive Design */
-@media (max-width: 900px) {
-  .layout {
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .sidebar {
-    position: static;
-    width: 320px;
-    flex-shrink: 0;
-  }
-
-  .main-content {
-    width: 100%;
-  }
-
-  #controls-and-render {
-    margin-top: 0;
-  }
-}
