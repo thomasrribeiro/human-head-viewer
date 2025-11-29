@@ -43,6 +43,48 @@ function getFilePath(filename) {
 }
 
 // ----------------------------------------------------------------------------
+// Dynamic render size calculation
+// ----------------------------------------------------------------------------
+
+function updateRenderSize() {
+  const renderBlock = document.getElementById('render-block');
+  const renderWrapper = document.getElementById('render-wrapper');
+
+  if (renderBlock && renderWrapper) {
+    const blockRect = renderBlock.getBoundingClientRect();
+
+    // Account for colorbar (left side) and slider (right side) space
+    const colorbarWidth = 120; // Width when visible (from CSS)
+    const sliderWidth = 40; // Space for slider on right
+    const horizontalPadding = colorbarWidth + sliderWidth;
+
+    // Available space in the render block
+    const availableHeight = blockRect.height;
+    const availableWidth = blockRect.width - horizontalPadding;
+
+    // Use the smaller dimension to maintain square aspect ratio
+    // Ensure minimum size to prevent disappearing
+    const size = Math.max(200, Math.min(availableHeight, availableWidth, 800)); // Min 200px, Max 800px
+
+    renderWrapper.style.width = `${size}px`;
+    renderWrapper.style.height = `${size}px`;
+  }
+}
+
+// Call initially and on window resize
+updateRenderSize();
+window.addEventListener('resize', updateRenderSize);
+
+// Use MutationObserver to detect when viz-mode-container becomes visible
+const vizModeObserver = new MutationObserver(() => {
+  updateRenderSize();
+});
+const vizModeContainer = document.getElementById('viz-mode-container');
+if (vizModeContainer) {
+  vizModeObserver.observe(vizModeContainer, { attributes: true, attributeFilter: ['style'] });
+}
+
+// ----------------------------------------------------------------------------
 // Standard rendering code setup
 // ----------------------------------------------------------------------------
 

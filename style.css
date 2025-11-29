@@ -5,29 +5,29 @@
 }
 
 :root {
-  --render-size: min(50vw, calc(100vw - 230px), 400px, calc(100vh - 250px));
-  --render-width: var(--render-size);
-  --render-height: var(--render-size);
   --colorbar-width: 140px;
   --side-margin: 30px;
 }
 body {
   margin: 0;
   padding: 0;
-  overflow: auto;
+  overflow: hidden;
   height: 100vh;
   min-height: 0;
   font-family: 'IBM Plex Mono', monospace;
   line-height: 1.6;
+  display: flex;
+  flex-direction: column;
 }
 
 .container {
   max-width: 100%;
   margin: 0;
   padding: 0;
-  height: 100vh;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .layout {
@@ -309,8 +309,7 @@ body {
   cursor: pointer;
 }
 #display-element-btn {
-  padding: 4px 12px;
-  background: #0066cc;
+  padding: 4px 12px;  background: #0066cc;
   color: white;
   border: none;
   border-radius: 4px;
@@ -326,6 +325,8 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  width: 100%;
+  height: 100%;
 }
 #render-block {
   position: relative;
@@ -333,11 +334,12 @@ body {
   align-items: center;
   justify-content: center;
   overflow: visible;
+  flex: 1;
+  width: 100%;
 }
 #render-wrapper {
   position: relative;
-  width: var(--render-width);
-  height: var(--render-height);
+  /* Width and height set dynamically via JavaScript */
 }
 #viz-and-render {
   display: flex;
@@ -346,6 +348,7 @@ body {
   gap: 0px;
   position: relative;
   width: 100%;
+  height: 100%;
 }
 #reset-camera-btn {
   margin-left: 10px;
@@ -408,7 +411,7 @@ body {
   background-color: #ef4444; /* red */
 }
 #slider-container {
-  height: var(--render-height);
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -424,7 +427,7 @@ body {
   writing-mode: vertical-lr;
   direction: rtl;
   width: 16px;
-  height: 60.5%;
+  height: 60%;
   background: #ddd;
   outline: none;
   opacity: 0.7;
