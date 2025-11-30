@@ -84,6 +84,23 @@ if (vizModeContainer) {
   vizModeObserver.observe(vizModeContainer, { attributes: true, attributeFilter: ['style'] });
 }
 
+// Prevent VTK from capturing events on colorbar and slider
+function preventVTKEvents(element) {
+  if (element) {
+    const events = ['mousedown', 'mousemove', 'mouseup', 'wheel', 'touchstart', 'touchmove', 'touchend', 'pointerdown', 'pointermove', 'pointerup'];
+    events.forEach(eventType => {
+      element.addEventListener(eventType, (e) => {
+        e.stopPropagation();
+      }, { capture: true });
+    });
+  }
+}
+
+const colorbarContainer = document.getElementById('colorbar-container');
+const sliderContainer = document.getElementById('slider-container');
+preventVTKEvents(colorbarContainer);
+preventVTKEvents(sliderContainer);
+
 // ----------------------------------------------------------------------------
 // Standard rendering code setup
 // ----------------------------------------------------------------------------
